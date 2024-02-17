@@ -258,6 +258,10 @@ class Release extends Tool{
 
 
     private function findServiceInConfig($serviceName, $configArray){
+
+        // This is temporary until the new service inclusion pattern has been implemented
+        return true;
+
         if(array_key_exists('services', $configArray) && is_array($configArray['services'])){
             return
                 array_key_exists($serviceName, $configArray['services']) &&
@@ -313,11 +317,7 @@ class Release extends Tool{
             if(is_array($value)){
                 $returnString .= $this->stringifyArray($value) . ",";
             }else{
-                if(is_numeric($returnString) || is_null($value) || is_bool($value)){
-                    $returnString .= $value . ",";
-                }else{
-                    $returnString .= "\"$value\",";
-                }
+                $returnString .= var_export($value, true) . ",";
             }
         }
 
@@ -496,11 +496,15 @@ class Release extends Tool{
 
             $serviceId = strtolower(substr($directoryName, 0, 1));
 
-            for($i = 1; $i < strlen($directoryName); $i++){
-                if(substr($directoryName, $i, 1) === strtoupper(substr($directoryName, $i, 1))){
-                    $serviceId .= "-";
+            if($directoryName === strtoupper($directoryName)) {
+                $serviceId = strtolower($directoryName);
+            } else {
+                for($i = 1; $i < strlen($directoryName); $i++){
+                    if(substr($directoryName, $i, 1) === strtoupper(substr($directoryName, $i, 1))){
+                        $serviceId .= "-";
+                    }
+                    $serviceId .= strtolower(substr($directoryName, $i, 1));
                 }
-                $serviceId .= strtolower(substr($directoryName, $i, 1));
             }
 
         }else{

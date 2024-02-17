@@ -33,6 +33,9 @@ class RequestTree extends BaseModel{
             if(array_key_exists('apiKey', $queryParams)){
                 unset($queryParams['apiKey']);
             }
+            if(array_key_exists('session', $queryParams)){
+                unset($queryParams['session']);
+            }
             if(count($queryParams) > 0){
                 $this->setMetadata('queryParams', $queryParams);
             }

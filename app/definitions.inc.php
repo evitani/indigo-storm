@@ -1,7 +1,7 @@
 <?php
 
 //App details
-define("IS_VERSION", "20.05");
+define("IS_VERSION", "20.07");
 $part1 = date("y");
 $part2 = intval(intval(date("W")) / 2);
 if($part2 < 10){

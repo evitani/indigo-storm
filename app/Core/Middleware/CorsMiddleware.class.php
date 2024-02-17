@@ -6,7 +6,7 @@ class CorsMiddleware extends BaseMiddleware{
     public function __invoke($request, $response, $next){
         global $Application;
 
-        $response = $response->withHeader('Access-Control-Allow-Headers', 'Access-Control-Allow-Origin,Pragma,Cache-Control,If-Modified-Since,Content-Type,is-api-key');
+        $response = $response->withHeader('Access-Control-Allow-Headers', 'Access-Control-Allow-Origin,Pragma,Cache-Control,If-Modified-Since,Content-Type,is-api-key,is-session,enctype');
 
         if($request->getServerParam('HTTP_ORIGIN')){
             $incomingUrl = $request->getServerParam('HTTP_ORIGIN');

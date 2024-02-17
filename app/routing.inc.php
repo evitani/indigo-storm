@@ -62,6 +62,12 @@ foreach($runningServices as $runningService){
                     }
                 }
 
+                if(array_key_exists('access-control', $serviceDefinition[$routeName])){
+                    if(array_key_exists($methodName, $serviceDefinition[$routeName]['access-control']) && $serviceDefinition[$routeName]['access-control'][$methodName] !== false){
+                        $Application->enableEndpointAccessControl($runningServiceId . "/" . $routeName, $methodName, $serviceDefinition[$routeName]['access-control'][$methodName]);
+                    }
+                }
+
                 foreach($methodParameters as $numberOfParamters => $parameterDefinitions){
 
                     //We have a route that matches, generate and attach its variants to the app.
@@ -70,6 +76,9 @@ foreach($runningServices as $runningService){
                             $endpoint = $routeName;
                             break;
                         case 1:
+                            if(is_array($parameterDefinitions)){
+                                $parameterDefinitions = $parameterDefinitions[0];
+                            }
                             $endpoint = $routeName . '/{' . $parameterDefinitions . '}';
                             break;
                         default:
@@ -102,7 +111,11 @@ foreach($runningServices as $runningService){
                             global $routeName;
                             global $Application;
 
-                            if($inThisService[$routeName] === 'interface-only' && !$Application->calledByInterface){
+                            if(
+                                array_key_exists($routeName, $inThisService) &&
+                                $inThisService[$routeName] === 'interface-only' &&
+                                !$Application->calledByInterface
+                            ){
                                 throw new \Exception('Interface route called by non-interface.', 401);
                             }
 
@@ -113,9 +126,11 @@ foreach($runningServices as $runningService){
                             switch ($returnType){
                                 case 'file':
                                     $file = $controller->$handlingMethod($request, $response, $args);
-                                    $response->write($file['content']);
-                                    $response = $response->withHeader('Content-Type', $file['mime']);
-                                    break;
+                                    if(array_key_exists('content', $file) && array_key_exists('mime', $file)){
+                                        $response->write($file['content']);
+                                        $response = $response->withHeader('Content-Type', $file['mime']);
+                                        break;
+                                    }
                                 case 'json':
                                 default:
                                     $response = $response->withJson($controller->$handlingMethod($request, $response, $args));

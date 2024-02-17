@@ -58,8 +58,12 @@ class BaseModel{
      * @param string $revisionType Whether to save the old copy of the object. Default to saving a full revision.
      * @throws \Exception
      */
-    public function persist($revisionType = SAVE_REVISIONS_OBJECT){
+    public function persist($revisionType = null){
         global $Application;
+
+        if(is_null($revisionType)){
+            $revisionType = $this->revisionHandling;
+        }
 
         if($this->getId() === 0 || is_null($this->getId())){
             //New object to save
@@ -405,7 +409,7 @@ class BaseModel{
             $datasets = array_map('strtoupper', $datasets);
         }
 
-        $packageKeys = array('name');
+        $packageKeys = array('name', 'id');
 
         foreach(get_object_vars($this) as $objectVarKey => $objectVar){
 
@@ -440,6 +444,11 @@ class BaseModel{
             throw new \Exception("Invalid package, must be array", 500);
         }
 
+        // Load everything in before unpacking new content
+        if($this->id){
+            $this->getAll();
+        }
+
         $packageKeys = array('name');
 
         foreach(get_object_vars($this) as $objectVarKey => $objectVar){
@@ -458,7 +467,7 @@ class BaseModel{
                 //Key is a DataTable, fill table
                 if(array_key_exists($objectVarKey, $package)){
 
-                    $this->{'set' . $objectVarKeyUc}($package[$objectVarKey]);
+                    $this->{'set' . $objectVarKey}($package[$objectVarKey]);
                 }
 
             }

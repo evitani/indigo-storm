@@ -17,6 +17,7 @@ class Application{
     public $user;
     public $calledByInterface = false;
     protected $endpointSecurity = array();
+    protected $endpointAccess = array();
     public $key = null;
 
     public $db2 = null;
@@ -242,5 +243,30 @@ class Application{
         }
     }
 
+    public function enableEndpointAccessControl($endpoint, $method, $restriction){
+        $method = strtolower($method);
+        if(array_key_exists($endpoint, $this->endpointAccess) && is_array($this->endpointAccess[$endpoint])){
+            $this->endpointAccess[$endpoint][$method] = $restriction;
+        }else{
+            $this->endpointAccess[$endpoint] = array($method => $restriction);
+        }
+
+    }
+
+    public function isEndpointAccessControlled($endpoint, $method){
+        $method = strtolower($method);
+
+        if(array_key_exists($endpoint, $this->endpointAccess) && is_array($this->endpointAccess[$endpoint])){
+
+            if(array_key_exists($method, $this->endpointAccess[$endpoint])){
+                return $this->endpointAccess[$endpoint][$method];
+            }else{
+                return false;
+            }
+
+        }else{
+            return false;
+        }
+    }
 
 }
