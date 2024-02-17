@@ -374,6 +374,10 @@ class BaseModel{
 
     }
 
+    /**
+     * Delete the object from the database.
+     * @param mixed $backupType Whether to keep or delete the backup. Defaults to the object type's preset behaviour.
+     */
     public function delete($backupType = null){
         global $Application;
 
@@ -388,4 +392,80 @@ class BaseModel{
         $Application->db2->deleteObject($this, $backupType);
 
     }
+
+    /**
+     * Create a packaged array of the object without unneeded items or DataTable depth. Format supported by `->unpack()`
+     * @param null|array $datasets
+     * @return array The packaged version of the object
+     */
+    public function pack($datasets = null){
+        $package = array();
+
+        if(is_array($datasets)){
+            $datasets = array_map('strtoupper', $datasets);
+        }
+
+        $packageKeys = array('name');
+
+        foreach(get_object_vars($this) as $objectVarKey => $objectVar){
+
+            if(in_array($objectVarKey, $packageKeys)){
+                //Key should be packaged
+                $package[$objectVarKey] = $objectVar;
+            }elseif(is_object($objectVar) && get_class($objectVar) === DATATABLE_CLASS){
+                //Key is a DataTable, package the data (if requested)
+                if((!is_null($datasets) && in_array(strtoupper($objectVarKey), $datasets)) || is_null($datasets)){
+                    $package[$objectVarKey] = $objectVar->fetchDataTable();
+                }
+            }
+
+        }
+
+        return $package;
+
+    }
+
+    /**
+     * Unpack an associative array (or json-encoded string) into the object. Format produced by `->pack()`
+     * @param string|array $package The array or json-encoded array of the target object content
+     * @throws \Exception Exception thrown if package is invalid
+     */
+    public function unpack($package){
+
+        if(is_string($package)){
+            $package = json_decode($package, true);
+        }
+
+        if(!is_array($package)){
+            throw new \Exception("Invalid package, must be array", 500);
+        }
+
+        $packageKeys = array('name');
+
+        foreach(get_object_vars($this) as $objectVarKey => $objectVar){
+
+            $objectVarKeyUc = ucwords($objectVarKey);
+
+            if(in_array($objectVarKey, $packageKeys)){
+
+                //Key can be edited by package
+                if(array_key_exists($objectVarKey, $package)){
+                    $this->{'set' . $objectVarKeyUc}($package[$objectVarKey]);
+                }
+
+            }elseif(is_object($objectVar) && get_class($objectVar) === DATATABLE_CLASS){
+
+                //Key is a DataTable, fill table
+                if(array_key_exists($objectVarKey, $package)){
+
+                    $this->{'set' . $objectVarKeyUc}($package[$objectVarKey]);
+                }
+
+            }
+
+        }
+
+    }
+
+
 }

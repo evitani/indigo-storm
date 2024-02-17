@@ -24,9 +24,12 @@ define('DB2_INT', 'int(11)');
 //Database search type
 define('SEARCH_BY_ID', 'id');
 define('SEARCH_BY_NAME', 'name');
+define('ORDER_DESC', 'DESC');
+define('ORDER_ASC', 'ASC');
 
 //Class information
 define('DATATABLE_CLASS', 'Core\Db2\Models\DataTable');
+define('SEARCHQUERY_CLASS', 'Core\Db2\Models\SearchQuery');
 
 //Object save types
 define('SAVE_REVISIONS_NO', 'norev');

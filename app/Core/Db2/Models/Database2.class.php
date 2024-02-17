@@ -375,6 +375,20 @@ class Database2{
         }
     }
 
+    public function fulfillSearchQuery($searchQuery){
+
+        if(
+            !is_object($searchQuery) ||
+            get_class($searchQuery) !== SEARCHQUERY_CLASS ||
+            $searchQuery->getQuerySql() === null
+        ){
+            throw new \Exception('Malformed search query', 500);
+        }
+
+        return $this->getList($searchQuery->getQuerySql());
+
+    }
+
     /**
      * Searches for objects in the database based on a combined set of characteristics.
      * @param string $resource
@@ -394,6 +408,7 @@ class Database2{
      * @throws \Exception
      */
     public function searchForObjects($resource, $dataset, $criteria, $limit = null, $glue = 'AND', $order = 'DESC'){
+        islog(LOG_WARNING, "The searchForObjects function is deprecated and will be removed in a future release. Upgrade to SearchQuery now.");
         switch ($dataset){
             case 'name':
             case 'dataKey':
