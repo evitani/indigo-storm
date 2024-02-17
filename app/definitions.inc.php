@@ -1,7 +1,7 @@
 <?php
 
 //App details
-define("IS_VERSION", "19.25");
+define("IS_VERSION", "20.01");
 $part1 = date("y");
 $part2 = intval(intval(date("W")) / 2);
 define('IS_MOSTRECENT', $part1 . "." . $part2);
