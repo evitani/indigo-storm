@@ -1,0 +1,2 @@
+#!/bin/bash
+php tools/dev.php $*
