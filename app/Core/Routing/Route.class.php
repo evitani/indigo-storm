@@ -36,7 +36,7 @@ class Route {
         } else {
             return false;
         }
-        if ($method !== false){
+        if ($method !== false && $methodDetails !== false){
             return array_merge($details, $methodDetails);
         } else {
             return false;

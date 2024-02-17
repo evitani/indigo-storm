@@ -16,6 +16,8 @@ class ConfigItem {
             if (property_exists($this, $datum)) {
                 $this->$datum = $value;
                 unset($data[$datum]);
+            } else {
+                $this->data[$datum] = $value;
             }
         }
 

@@ -69,7 +69,7 @@ class RouteMethod {
 
     private function _checkReturnType($returnType) {
         $returnType = strtolower($returnType);
-        $allowed = array(RETURN_JSON, RETURN_FILE);
+        $allowed = array(RETURN_JSON, RETURN_FILE, RETURN_XML);
         return in_array($returnType, $allowed);
     }
 }

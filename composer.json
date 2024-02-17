@@ -3,7 +3,7 @@
     "post-install-cmd": "@composer update"
   },
   "require": {
-    "wikimedia/composer-merge-plugin": "^1.4",
+    "wikimedia/composer-merge-plugin": "^2.0",
     "google/cloud-logging": "^1.19",
     "google/cloud-tasks": "^1.7"
   },

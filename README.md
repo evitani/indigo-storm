@@ -40,10 +40,8 @@ provision new databases for development environments.
 
 ## Versioning
 
-Releases are identified by [year number].[week in year / 2]. A pre-release of the next version is maintained on a 
-separate branch which is merged with the release branch at launch.
-
-*NOTE: Releases are currently sporadic, but naming will continue to follow the naming pattern expected.*
+Releases follow a [major].[minor] naming schema, with major versions being aligned with the current year. A pre-release 
+of the next version is maintained on a separate branch which is merged with the release branch at launch.
 
 For information on changes, see the [WHATSNEW.md](WHATSNEW.md) file, and check the same file in the pre-release branch 
 for breaking changes before updating.

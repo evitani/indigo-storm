@@ -5,7 +5,7 @@ namespace Core\Db2\Models;
 class SearchQuery{
 
     private $baseQuery = "SELECT name FROM |TABLENAME||CONDITION||ORDER||LIMIT|";
-    private $condition;
+    private $condition = ' WHERE status = "ACTIVE"';
     private $limit;
     private $orderQ = " ORDER BY id DESC";
 
@@ -63,8 +63,9 @@ class SearchQuery{
         if(is_array($term)){
             $return = array();
             foreach($term as $termItem){
-                $return[] = $this->wrapTerms($term);
+                $return[] = $this->wrapTerms($termItem);
             }
+            return $return;
         }elseif(is_string($term)){
             return "\"" . $term . "\"";
         }else{
@@ -168,7 +169,9 @@ class SearchQuery{
     }
 
     public function filter($query){
-        $this->condition = " WHERE ";
+        if ($this->condition === ' WHERE status = "ACTIVE"') {
+            $this->condition .=  ' AND ';
+        }
         if(is_int($query) && $query < count($this->storedItems)){
             $this->condition .= $this->storedItems[$query];
         }elseif(is_array($query) && count($query) === 3){

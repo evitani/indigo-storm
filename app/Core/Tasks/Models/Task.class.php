@@ -6,6 +6,7 @@ use Google\ApiCore\ApiException;
 use Google\Cloud\Tasks\V2\CloudTasksClient;
 use Google\Cloud\Tasks\V2\HttpMethod;
 use Google\Cloud\Tasks\V2\HttpRequest;
+use Google\Protobuf\Timestamp;
 use Services\User\AsyncAuthInterface;
 
 class Task {
@@ -33,7 +34,7 @@ class Task {
         $this->parseOptions($options);
     }
 
-    public function run() {
+    public function run($delay = 0) {
 
         $this->setAuth('task');
 
@@ -41,7 +42,7 @@ class Task {
 
         if ($isGAE) {
             // Inside App Engine, send the task to a queue
-            if (!$this->_runGAE()) {
+            if (!$this->_runGAE($delay)) {
                 // Cloud Task couldn't be created, store it instead and warn
                 islog(LOG_WARNING, "Task set failed, adding to internal queue instead");
                 return $this->_runQueue();
@@ -97,7 +98,7 @@ class Task {
         }
     }
 
-    private function _runGAE() {
+    private function _runGAE($delay = 0) {
         global $indigoStorm;
 
         try{
@@ -109,8 +110,7 @@ class Task {
 
         $client = new CloudTasksClient();
 
-
-        $queueName = $client->queueName($gae['project'], $gae['location'], $gae['queue']);
+        $queueName = $client->queueName($gae->getProject(), $gae->getLocation(), $gae->getQueue());
 
         $request = new HttpRequest();
         $request->setUrl($this->config['url']);
@@ -121,7 +121,13 @@ class Task {
             $request->setBody(json_encode($this->config['payload']));
         }
 
-        $task = new \Google\Cloud\Tasks\V2\Task();
+        if ($delay > 0) {
+            $runTime = time() + $delay;
+            $task = new \Google\Cloud\Tasks\V2\Task(['schedule_time' => new Timestamp(['seconds' => $runTime])]);
+        } else {
+            $task = new \Google\Cloud\Tasks\V2\Task();
+        }
+
         $task->setHttpRequest($request);
 
         try {
@@ -185,6 +191,9 @@ class Task {
     private function buildUrl($service, $url){
         global $indigoStorm;
 
+        $service = preg_replace('/([A-Z])/', ' ${1}', $service);
+        $service = trim($service);
+        $service = str_replace(' ', '-', $service);
         $service = strtolower($service);
 
         $serviceUrl = $indigoStorm->getConfig('url');

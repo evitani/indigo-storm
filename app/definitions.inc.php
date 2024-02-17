@@ -4,15 +4,7 @@
 define('_RUNNINGDIR_', getcwd());
 
 //App details
-define("IS_VERSION", "20.15");
-$part1 = date("y");
-$part2 = intval(intval(date("W")) / 2);
-if($part2 < 10){
-    $part2 = "0" . $part2;
-}
-define('IS_MOSTRECENT', $part1 . "." . $part2);
-unset($part1);
-unset($part2);
+define("IS_VERSION", "21.17");
 
 //DB2 constants
 define('DB2_VARCHAR_SHORT', 'varchar(128)');
@@ -55,17 +47,9 @@ define('HTTP_METHOD_OPTIONS', 'options');
 // Return types
 define('RETURN_JSON', 'json');
 define('RETURN_FILE', 'file');
+define('RETURN_XML', 'xml');
 
 // Tiers
 define('TIER_RELEASE', 'release');
 define('TIER_PRERELEASE', 'prerelease');
 define('TIER_LOCAL', 'local');
-
-//Message types
-define('MAILMAN_EMAIL', 'email');
-define('MAILMAN_SMS', 'sms');
-
-//Mailman
-define('MAILMAN_LOG_SEND_IMMEDIATE', 'IMMEDIATE_SEND');
-define('MAILMAN_LOG_SEND_SCHEDULED', 'SCHEDULED_SEND');
-define('MAILMAN_LOG_SENT', 'SENT');

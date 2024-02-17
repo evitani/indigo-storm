@@ -3,6 +3,7 @@
 namespace Core\Routing;
 
 use Core\Models\RequestTree;
+use Core\Payloads\File;
 
 class Request {
 
@@ -20,6 +21,8 @@ class Request {
 
     private $authentication = false;
     private $accessControl = false;
+
+    private ?array $uploadedFiles = null;
 
     public function requiresAuthentication() {
         return $this->authentication;
@@ -60,7 +63,39 @@ class Request {
     }
 
     public function getParsedBody() {
-        return json_decode(file_get_contents('php://input'), true);
+
+        $controller = $this->handler['controller'];
+        $method = $this->getMethod();
+
+        $payload = 'array';
+        if (property_exists($controller, 'payload')) {
+            if (is_array($controller->payload) && array_key_exists($method, $controller->payload)) {
+                if (is_array($controller->payload[$method])) {
+                    if (array_key_exists(count($this->args), $controller->payload[$method])) {
+                        $payload = $controller->payload[$method][count($this->args)];
+                    }
+                } else {
+                    $payload = $controller->payload[$method];
+                }
+            } elseif (!is_array($controller->payload)) {
+                $payload = $controller->payload;
+            }
+        }
+
+        $inbound = json_decode(file_get_contents('php://input'), true);
+        if (is_null($inbound)) {
+            $body = $_POST;
+        } else {
+            $body = $inbound;
+        }
+
+        if ($payload === 'array') {
+            return $body;
+        } else {
+            $payload = dynamic_loader($payload);
+            $payload->parse($body);
+            return $payload;
+        }
     }
 
     public function getServerParam($param) {
@@ -104,7 +139,9 @@ class Request {
         $this->service = $handler['service'];
         $this->args = $this->_formatArgs($handler['args']);
         $this->authentication = array_key_exists('authentication', $handler) && $handler['authentication'];
-        $this->accessControl = array_key_exists('accessControl', $handler) && $handler['accessControl'];
+        if (array_key_exists('accessControl', $handler) && $handler['accessControl'] !== false) {
+            $this->accessControl = $handler['accessControl'];
+        }
 
     }
 
@@ -117,7 +154,7 @@ class Request {
     }
 
     public function isOptions() {
-        return strtolower($_SERVER['REQUEST_METHOD']) === HTTP_METHOD_GET;
+        return strtolower($_SERVER['REQUEST_METHOD']) === HTTP_METHOD_OPTIONS;
     }
 
     public function getArgs() {
@@ -179,6 +216,42 @@ class Request {
 
     public function getHandlingService() {
         return $this->service;
+    }
+
+    public function getUploadedFiles(): array {
+
+        if (is_null($this->uploadedFiles)) {
+            $files = [];
+            $inboundFiles = $_FILES;
+
+            foreach ($inboundFiles as $fileField => $file) {
+                if ($file['error'] > 0) {
+                    throw new \Exception('Upload of ' . $fileField . ' failed', 500);
+                }
+                $files[$fileField] = new File();
+                $files[$fileField]->parse([
+                                              'name' => $file['name'],
+                                              'mime' => $file['type'],
+                                              'size' => $file['size'],
+                                              'content' => file_get_contents($file['tmp_name'])
+                                          ]);
+            }
+
+            $this->uploadedFiles = $files;
+            return $files;
+        } else {
+            return $this->uploadedFiles;
+        }
+
+    }
+
+    public function getUploadedFile(string $fileField) : File {
+        $files = $this->getUploadedFiles();
+        if (array_key_exists($fileField, $files)) {
+            return $files[$fileField];
+        } else {
+            throw new \Exception('File ' . $fileField . ' does not exist', 500);
+        }
     }
 
 }

@@ -30,4 +30,33 @@ class BaseController{
         throw new \Exception('Could not handle request using this method (DELETE)', 405);
     }
 
+    /**
+     * Check an array payload matches a list of expected keys. Note this only checks if a key is present and only at the
+     * top level of the payload, it does not check content or complex payload structures
+     * @param array $payload The payload (or any key/value array)
+     * @param array $requiredKeys An array of the required keys
+     * @param bool $strict When true, fields in the payload that aren't required will cause a failure (default false)
+     * @return bool Whether the payload is valid or not
+     */
+    protected function _validatePayload(array $payload, array $requiredKeys, bool $strict = false) {
+        $payloadKeys = array_keys($payload);
+
+        foreach ($requiredKeys as $requiredKey) {
+            if (!in_array($requiredKey, $payloadKeys)) {
+                return false;
+            }
+        }
+
+        if ($strict) {
+            foreach($payloadKeys as $payloadKey) {
+                if (!in_array($payloadKey, $requiredKeys)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+
+    }
+
 }

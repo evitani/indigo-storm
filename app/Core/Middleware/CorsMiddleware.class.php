@@ -30,7 +30,7 @@ class CorsMiddleware extends BaseMiddleware{
 
         if(!is_null($request->getServerParam('HTTP_ORIGIN'))){
             $incomingUrl = $request->getServerParam('HTTP_ORIGIN');
-        }else{
+        } else {
             $incomingUrl = $request->getServerParam('HTTP_REFERER');
         }
 

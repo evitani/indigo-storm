@@ -3,6 +3,7 @@
 namespace Core\Models;
 
 use Core\Db2\Models\DataTable;
+use Core\Db2\Models\SearchQuery;
 
 /**
  * Basic class used as the template for other classes.
@@ -113,7 +114,7 @@ class BaseModel{
         }
     }
 
-    protected function populateObject($id, $name){
+    protected function _populateObject($id, $name){
         if($this->getId() === 0 || $this->getId() === false || is_null($this->getId())){
             $this->id = intval($id);
             $this->setName($name);
@@ -130,10 +131,13 @@ class BaseModel{
      * @param mixed $id
      * Optional. Either the ID or the name of the resource in its table. If set, this will return the resource from the
      * database. If not, it will generate a new object ready for use.
+     * @param mixed $lookupType
+     * Optional. Whether to load the object by name or ID (defaults to name). Not all objects support ID and will fall
+     * back to name.
      * @throws \Exception
      * If $id is defined and cannot be matched to an existing resource, 404 is thrown.
      */
-    function __construct($id = false, $forceIdLookup = false){
+    function __construct($id = false, $lookupType = SEARCH_BY_NAME){
         global $indigoStorm;
 
         $this->addDataTable('Metadata', DB2_VARCHAR, DB2_BLOB);
@@ -142,35 +146,13 @@ class BaseModel{
 
         if($id !== false && !is_null($id) && $id !== ''){
 
-            //Existing object
-            if($forceIdLookup === false || $this->allowEnumeration === false){
-                $forceIdLookup = SEARCH_BY_NAME;
-            }
+            //Existing object, load in details
+            $details = $this->_getDetails($id, $lookupType);
 
-            if($forceIdLookup === SEARCH_BY_NAME || $forceIdLookup === SEARCH_BY_ID){
-
-                if($forceIdLookup === SEARCH_BY_NAME){
-                    $foundId = $indigoStorm->getDb2()->findObject($this->typeOf(true), $id, $forceIdLookup);
-                }else{
-                    $foundId = $id;
-                }
-                if($foundId !== false){
-                    //Found the object, populate.
-
-                    $details = $indigoStorm->getDb2()->getObject($this->typeof(true), $foundId);
-
-                    if($details !== false){
-                        $this->populateObject($details['id'], $details['name']);
-                    }else{
-                        throw new \Exception('Resource not found ' . $this->typeof(), 404);
-                    }
-
-                }else{
-                    //No matching object was found.
-                    throw new \Exception('Resource not found ' . $this->typeof(), 404);
-                }
+            if($details !== false){
+                $this->_populateObject($details['id'], $details['name']);
             }else{
-                throw new \Exception('Malformed Object Fetch', 500);
+                throw new \Exception('Resource not found ' . $this->typeof(), 404);
             }
 
         }
@@ -262,7 +244,7 @@ class BaseModel{
                         //Replace whole table
                         return $this->{$remainder}->writeDataTable($args[0]);
                     }else{
-                        throw new \Exception("Malformed DataTable request (SET)", 500);
+                        throw new \Exception("Malformed DataTable request (SET) " . $name . " " . json_encode($args), 500);
                     }
                     break;
 
@@ -279,7 +261,16 @@ class BaseModel{
 
                 case 'del':
 
-                    // @TODO design a deletion method
+                    // Delete a value from the datatable
+                    if (isset($args[0])) {
+                       $keyToDelete = trim($args[0]);
+                       return $this->{$remainder}->deleteFromDataTable($keyToDelete);
+                    } else {
+                        foreach ($this->{$remainder}->getExistingKeys() as $existingKey) {
+                            $this->{$remainder}->deleteFromDataTable($existingKey);
+                        }
+                        return true;
+                    }
                     break;
             }
 
@@ -471,5 +462,44 @@ class BaseModel{
 
     }
 
+    /**
+     * Load an object or create a new object with the name (if provided) if one doesn't already exist. Can be used to
+     * instantiate objects by then calling ->persist() or to confirm if an object exists without requiring a try/catch.
+     * @param mixed $id The name or ID of the object to be loaded.
+     * @param string $lookupType Whether to look up the object by name or ID.
+     * @return bool Whether the object was loaded (true) or created (false). NB: creation does not persist the object.
+     * @throws \Exception
+     */
+    public function loadOrCreate($id, $lookupType = SEARCH_BY_NAME) {
+        $details = $this->_getDetails($id, $lookupType);
+
+        if ($details === false && $lookupType === SEARCH_BY_NAME) {
+            $this->setName($id);
+        } elseif ($details !== false) {
+            $this->_populateObject($details['id'], $details['name']);
+        }
+
+        return $details !== false;
+    }
+
+    protected function _getDetails($id, $lookupType = SEARCH_BY_NAME) {
+        global $indigoStorm;
+        if (!$this->allowEnumeration || ($lookupType !== SEARCH_BY_NAME && $lookupType !== SEARCH_BY_ID)) {
+            $lookupType = SEARCH_BY_NAME;
+        }
+        if($lookupType === SEARCH_BY_NAME){
+            $foundId = $indigoStorm->getDb2()->findObject($this->typeOf(true), $id, $lookupType);
+        }else{
+            $foundId = $id;
+        }
+
+        $details = $indigoStorm->getDb2()->getObject($this->typeof(true), $foundId);
+        if (is_null($details)) {
+            return false;
+        } else {
+            return $details;
+        }
+
+    }
 
 }

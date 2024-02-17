@@ -27,7 +27,11 @@ class Service {
         if (array_key_exists($args[0], $this->routes)){
             $url = $args[0];
             array_shift($args);
-            return array_merge(array('service' => $this->url), $this->routes[$url]->handle($method, $args));
+            if ($this->routes[$url]->handle($method, $args) === false) {
+                return false;
+            } else {
+                return array_merge(array('service' => $this->url), $this->routes[$url]->handle($method, $args));
+            }
         } else {
             return false;
         }

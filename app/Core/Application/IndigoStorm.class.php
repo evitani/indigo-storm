@@ -155,7 +155,7 @@ class IndigoStorm {
 
     private function _reportError($exception) {
         try {
-            if (!is_null($this->router->getRequest())) {
+            if (!is_null($this->router) && !is_null($this->router->getRequest())) {
                 $tree = $this->router->getRequest()->getTree();
                 if (!is_null($tree)){
                     $currentInteraction = $this->router->getRequest()->getTree()->getCurrentInteraction();
@@ -228,6 +228,7 @@ class IndigoStorm {
         if (array_key_exists('service', $global)) {
             $this->registerService($global['service']);
         } else {
+
             foreach ($this->_otfServiceList($config['services']) as $service) {
                 $this->registerService($service);
             }

@@ -37,7 +37,6 @@ class BaseInterface{
 
     }
 
-
     protected function sendGet($endpoint, $args){
 
         $url = $this->getServiceUrl($endpoint);

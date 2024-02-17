@@ -166,7 +166,10 @@ class Database2{
      */
     public function saveDataTable($object, DataTable $table){
 
-        if(is_numeric($object->getId()) && $object->getId() > 0 && count($table->fetchDataTable()) > 0){
+        if(is_numeric($object->getId()) &&
+            $object->getId() > 0 &&
+            (count($table->fetchDataTable()) > 0 || $table->countKeysToBeRemoved() > 0)
+        ){
             $objectId = $this->escape($object->getId());
             $objectName = $this->escape($object->typeOf(true));
             $keyName = $objectName . "Id";
@@ -341,7 +344,7 @@ class Database2{
         $objectId = $this->escape($id);
         $query = "SELECT id, name FROM $tableName WHERE id = $id AND `status` = 'ACTIVE' LIMIT 1";
         $response = $this->run($query);
-        if(count($response) === 1){
+        if(is_array($response) && count($response) === 1){
             return $response[0];
         }else{
             return false;

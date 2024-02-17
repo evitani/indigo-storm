@@ -24,6 +24,12 @@ class DataTable{
         }
     }
 
+    public function deleteFromDataTable($key) {
+        $this->lazyLoad();
+        unset($this->data[$key]);
+        return true;
+    }
+
     public function fetchFromDataTable($key){
         $this->lazyLoad();
         if(key_exists($key, $this->data)){
@@ -31,6 +37,10 @@ class DataTable{
         }else{
             return null;
         }
+    }
+
+    public function countKeysToBeRemoved(){
+        return count($this->existingKeys) - count($this->data);
     }
 
     public function fetchDataTable(){

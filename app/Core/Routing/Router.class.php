@@ -16,16 +16,69 @@ class Router {
         $args = $this->_getUrlFragments();
         $middlewareTree = $this->_buildMiddlewareTree($middleware);
 
+        if ($method === HTTP_METHOD_OPTIONS) {
+            $this->_handleOptions($services, $args);
+        } else{
+            foreach($services as $service){
+                $handler = $service->handle($method, $args);
+                if($handler !== false){
+                    $this->follow($handler, $middlewareTree);
+                    return true;
+                }
+            }
+            throw new \Exception("No suitable route found", 404);
+        }
+    }
+
+    private function _handleOptions($services, $args) {
+        $options = array(
+            HTTP_METHOD_GET => false,
+            HTTP_METHOD_POST => false,
+            HTTP_METHOD_PUT => false,
+            HTTP_METHOD_DELETE => false
+        );
+
         foreach ($services as $service) {
-            $handler = $service->handle($method, $args);
-            if ($handler !== false) {
-                $this->follow($handler, $middlewareTree);
-                return true;
+            foreach ($options as $option => $ignore) {
+                $handler = $service->handle($option, $args);
+                if ($handler !== false) {
+                    $options[$option] = true;
+                }
             }
         }
 
-        throw new \Exception("No suitable route found", 404);
+        $this->response = new Response();
+        $allowedOptions = array();
+        foreach ($options as $option => $include) {
+            if ($include) {
+                array_push($allowedOptions, strtoupper($option));
+            }
+        }
+        $allowedHeaders = array(
+            'Access-Control-Allow-Origin',
+            'Pragma',
+            'Cache-Control',
+            'If-Modified-Since',
+            'Content-Type',
+            'enctype',
+            'is-api-key',
+            'is-session',
+            'is-triggered-by',
+            'is-identity',
+        );
 
+        foreach ($allowedHeaders as $allowedHeader) {
+            $this->response->withHeader('Access-Control-Allow-Headers', $allowedHeader);
+        }
+        foreach ($options as $option => $include) {
+            if ($include) {
+                $this->response->withHeader('Access-Control-Allow-Methods', strtoupper($option));
+            }
+        }
+        $this->response->withHeader('Access-Control-Allow-Origin', '*');
+        $this->response->withJson($allowedOptions);
+        $this->response->serve();
+        exit();
     }
 
     private function follow($handler, $middlewareTree) {
