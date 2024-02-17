@@ -17,7 +17,7 @@ if (count($argv) > 1) {
 
     if (file_exists('tools/cmds/' . $tool . '.class.php')) {
         require_once 'tools/cmds/' . $tool . '.class.php';
-        $tool = dynamic_loader('Tools\\' . $tool);
+        $tool = tool_dynamic_loader('Tools\\' . $tool);
     } else {
         echo "Unrecognised command, run `help` to list commands" . PHP_EOL;
         exit;
@@ -34,7 +34,7 @@ if (count($argv) > 1) {
     echo "Command expects arguments, run `help` for more information". PHP_EOL;
 }
 
-function dynamic_loader($class){
+function tool_dynamic_loader($class){
     return new $class;
 }
 

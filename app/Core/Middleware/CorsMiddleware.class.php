@@ -18,10 +18,10 @@ class CorsMiddleware extends BaseMiddleware{
             'If-Modified-Since',
             'Content-Type',
             'enctype',
-            'is-api-key',
-            'is-session',
-            'is-triggered-by',
-            'is-identity',
+            'Is-Api-Key',
+            'Is-Session',
+            'Is-Triggered-By',
+            'Is-Identity',
         );
 
         foreach ($allowedHeaders as $allowedHeader) {

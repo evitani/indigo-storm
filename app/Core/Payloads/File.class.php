@@ -32,7 +32,7 @@ class File extends Payload {
         return base64_encode($this->content);
     }
 
-    public function parse($body, $base64 = false){
+    public function parse($body, $base64 = false) : void{
 
         if (array_key_exists('base64', $body) && is_bool($body['base64'])) {
             $base64 = $body['base64'];

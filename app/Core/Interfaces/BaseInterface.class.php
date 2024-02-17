@@ -56,6 +56,27 @@ class BaseInterface{
         return $response;
     }
 
+    protected function sendDelete(string $endpoint, $args) {
+
+        $url = $this->getServiceUrl($endpoint);
+
+        if(!is_array($args) && !is_null($args) && $args !== ''){
+            $args = array($args);
+        }
+
+        foreach($args as $arg){
+            $url .= "/" . urlencode($arg);
+        }
+
+        $response = $this->curlExec([
+                                        CURLOPT_URL => $url,
+                                        CURLOPT_CUSTOMREQUEST => 'DELETE'
+                                    ]);
+
+        return $response;
+
+    }
+
     protected function sendPost($endpoint, $payload){
 
         $url = $this->getServiceUrl($endpoint);
@@ -72,13 +93,20 @@ class BaseInterface{
 
     protected function sendPut($endpoint, $id, $payload){
         $url = $this->getServiceUrl($endpoint) . '/' . urlencode($id);
+        if (is_object($payload)) {
+            $payload = json_decode(json_encode($payload), true);
+        }
 
         $response = $this->curlExec([
                                         CURLOPT_URL           => $url,
                                         CURLOPT_CUSTOMREQUEST => "PUT",
-                                        //            CURLOPT_HTTPHEADER => [$this->getTreeHeader(), $this->getEnvironmentHeader(), 'X-Http-Method-Override: PUT'],
+                                        CURLOPT_HTTPHEADER => [
+                                            $this->getTreeHeader(),
+                                            $this->getEnvironmentHeader(),
+                                            'X-Http-Method-Override: PUT'
+                                        ],
                                         CURLOPT_POST          => count($payload),
-                                        CURLOPT_POSTFIELDS    => http_build_query($payload),
+                                        CURLOPT_POSTFIELDS    => json_encode($payload),
                                     ]);
 
         return $response;
@@ -100,7 +128,7 @@ class BaseInterface{
     }
 
     protected function formatResponse($response){
-        if(is_array(json_decode($response, true)) || is_object($response, true)){
+        if(is_array(json_decode($response, true)) || is_object($response)){
 
             $heldResponse = json_decode($response, false);
 

@@ -16,7 +16,7 @@ class Upgrade extends Tool {
         $tool = ucwords($this->args['resourceType']);
         if (file_exists('tools/cmds/upgrade/' . $tool . '.class.php')) {
             require_once 'tools/cmds/upgrade/' . $tool . '.class.php';
-            $tool = dynamic_loader('Tools\\Upgrade\\' . $tool);
+            $tool = tool_dynamic_loader('Tools\\Upgrade\\' . $tool);
             $tool->importFlags($this->flags);
             unset($this->args['resourceType']);
             $tool->importArgs($this->args);

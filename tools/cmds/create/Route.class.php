@@ -110,7 +110,7 @@ class Route extends Tool {
 
         if (array_key_exists('access', $this->flags)) {
             $access = explode(',', str_replace(" ", "", strtoupper($this->flags['access'])));
-            $serviceConfig['routes'][$routeName]['methods'][$method]['access-controls'] = $access;
+            $serviceConfig['routes'][$routeName]['methods'][$method]['access-control'] = $access;
         }
 
         if (array_key_exists('return', $this->flags)) {

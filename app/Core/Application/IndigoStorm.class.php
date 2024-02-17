@@ -19,14 +19,24 @@ class IndigoStorm {
     private $env;
     private $tier;
 
+    private $target;
+
     private $calledByInterface = null;
+    private $internalCall = null;
     private $host = null;
 
     private $db2 = null;
+    private bool $testing = false;
 
-    function __construct(){
-//        $this->_configure();
-//        $this->router = new Router();
+    public function isTesting() {
+        return $this->testing;
+    }
+
+    function __construct($env = null, $tier = null){
+        if (!is_null($env) && !is_null($tier)) {
+            $this->env = $env;
+            $this->tier = $tier;
+        }
     }
 
     public function getHost($service) {
@@ -96,6 +106,41 @@ class IndigoStorm {
         return $this->calledByInterface;
     }
 
+    public function isInternalCall(): bool {
+        if (is_null($this->internalCall)) {
+            // Need to define if this is an internal call (interface or task)
+            if (
+                array_key_exists('HTTP_IS_REQUEST_TREE', $_SERVER) &&
+                trim($_SERVER['HTTP_IS_REQUEST_TREE']) !== ''
+            ) {
+                // Has a request tree, check it exists
+                try{
+                    $tree = new RequestTree($_SERVER['HTTP_IS_REQUEST_TREE']);
+                    if (!is_null($tree->getMetadata('endTime'))) {
+                        $this->internalCall = false;
+                    } else {
+                        $this->internalCall = true;
+                    }
+                } catch (\Exception $e) {
+                    $this->internalCall = false;
+                }
+            } elseif (
+                array_key_exists('HTTP_IS_TRIGGERED_BY', $_SERVER) &&
+                trim($_SERVER['HTTP_IS_TRIGGERED_BY']) !== ''
+            ) {
+                // Has a triggered by
+                try{
+                    $tree = new RequestTree($_SERVER['HTTP_IS_TRIGGERED_BY']);
+                    // TODO consider adding a check function to avoid hijacking
+                    $this->internalCall = true;
+                } catch (\Exception $e) {
+                    $this->internalCall = false;
+                }
+            }
+        }
+        return $this->internalCall;
+    }
+
     public function getConfig($config) {
         if (property_exists($this, $config)) {
             return $this->$config;
@@ -106,7 +151,7 @@ class IndigoStorm {
         }
     }
 
-    public function getRouter() {
+    public function getRouter(): Router {
         return $this->router;
     }
 
@@ -185,6 +230,19 @@ class IndigoStorm {
         );
 
         try{
+            if(file_exists('app/Target/target.ser')) {
+                $target = @unserialize('app/Target/target.ser');
+            } elseif (file_exists('app/Target/target.yaml')) {
+                $target = yaml_parse_file('app/Target/target.yaml');
+            } else {
+                $target = [];
+            }
+            $this->target = $target;
+        } catch (\Exception $e) {
+            $this->_handleError($e);
+        }
+
+        try{
             if (file_exists('config/global.ser')) {
                 $global = unserialize(file_get_contents('config/global.ser'));
             } elseif (file_exists('config/global.yaml')) {
@@ -196,6 +254,7 @@ class IndigoStorm {
 
         if ($global['devmode']) {
             define('_DEVMODE_', true);
+            include_once 'tools/definitions.php';
         } else {
             define('_DEVMODE_', false);
         }
@@ -206,9 +265,11 @@ class IndigoStorm {
             define('_LITEMODE_', false);
         }
 
-        $envAndTier = $this->_getEnvAndTier();
-        $this->env = $envAndTier['env'];
-        $this->tier = $envAndTier['tier'];
+        if (is_null($this->env)){
+            $envAndTier = $this->_getEnvAndTier();
+            $this->env = $envAndTier['env'];
+            $this->tier = $envAndTier['tier'];
+        }
 
         if (_DEVMODE_){
             $config = $this->_otfConfigImport($this->env, $this->tier);
@@ -314,7 +375,7 @@ class IndigoStorm {
         if (file_exists($configFile)){
             return unserialize(file_get_contents($configFile));
         } else {
-            $this->_otfConfigImport($env, $tier);
+            return $this->_otfConfigImport($env, $tier);
         }
     }
 
@@ -378,6 +439,20 @@ class IndigoStorm {
         }
 
         if ($identity === false) {
+
+            if (
+                $_SERVER['REQUEST_METHOD'] === 'OPTIONS' &&
+                array_key_exists('HTTP_ACCESS_CONTROL_REQUEST_HEADERS', $_SERVER) &&
+                str_contains(strtolower($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']), 'is-identity')
+            ) {
+                // Handle CORS OPTIONS requests that use the is-identity header
+                header('Content-Type: application/json');
+                header("Access-Control-Allow-Origin: *");
+                header('Access-Control-Allow-Headers: *');
+                echo "[]";
+                exit;
+            }
+
             $this->_handleError(new \Exception('Target environment could not be identified', '502'));
         } else {
             return $identity;

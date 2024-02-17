@@ -6,7 +6,7 @@ class Payload {
 
     protected array $_other;
 
-    public function parse($body) {
+    public function parse($body): void {
         $entries = $this->document();
 
         foreach ($entries as $key => $config) {
@@ -96,6 +96,11 @@ class Payload {
                     }
                 }
                 break;
+            case 'set':
+                if (property_exists($this, $remainderLc)) {
+                    $this->$remainderLc = $args[0];
+                }
+                break;
         }
 
         return null;
@@ -108,7 +113,7 @@ class Payload {
         foreach (get_class_vars(get_class($this)) as $key => $value) {
             if (substr($key, 0, 1) !== '_' && isset($this->$key)) {
                 $array[$key] = $this->$key;
-            } elseif($key === '_other' && isset($this->_other) && is_array($this->_other) && !$strict) {
+            } elseif($key === '_other' && isset($this->_other) && !$strict) {
                 foreach ($this->_other as $okey => $ovalue) {
                     $array[$okey] = $ovalue;
                 }
@@ -132,7 +137,7 @@ class Payload {
                     'item' => true,
                     'type' => $this->_xml_gettype($this->$key)
                 ];
-            } elseif($key === '_other' && isset($this->_other) && is_array($this->_other) && !$strict) {
+            } elseif($key === '_other' && isset($this->_other) && !$strict) {
                 foreach ($this->_other as $okey => $ovalue) {
                     $object['content'][] = ['name' => $okey, 'content' => $ovalue, 'item' => true];
                 }
@@ -180,12 +185,12 @@ class Payload {
         return $xml;
     }
 
-    private function _xml_depth($depth) {
+    private function _xml_depth($depth): string {
         $padding = '  ';
         return str_repeat($padding, $depth + 1);
     }
 
-    private function _xml_content($content, $depth) {
+    private function _xml_content($content, $depth): string {
         if (is_bool($content)) {
             switch ($content) {
                 case true:
@@ -227,7 +232,7 @@ class Payload {
         return $content;
     }
 
-    private function _xml_gettype($item) {
+    private function _xml_gettype($item): ?string {
         $type = gettype($item);
         $replacements = [
             'float' => 'decimal',
@@ -249,8 +254,7 @@ class Payload {
         }
     }
 
-    function _isAssoc(array $arr)
-    {
+    function _isAssoc(array $arr) : bool {
         if (array() === $arr) return false;
         return array_keys($arr) !== range(0, count($arr) - 1);
     }

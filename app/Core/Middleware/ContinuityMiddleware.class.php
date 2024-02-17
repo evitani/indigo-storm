@@ -44,7 +44,13 @@ class ContinuityMiddleware extends BaseMiddleware{
             $routeName = $request->getRouteName();
 
             $request->getTree()->getAll();
-            $request->getTree()->setInteraction(strval(microtime(true)), $routeName);
+
+            $trace = md5(uniqid($routeName, true));
+
+            $request->getTree()->setInteraction($trace, [
+                'r' => $routeName,
+                't' => strval(microtime(true))
+            ]);
             $request->getTree()->setCurrentInteraction($routeName);
             $request->getTree()->persist();
 

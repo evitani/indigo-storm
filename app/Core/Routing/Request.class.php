@@ -172,7 +172,7 @@ class Request {
             $return = array();
             $i = 0;
             foreach($argNames as $argName) {
-                $return[$argName] = $framgments[$i];
+                $return[$argName] = urldecode($framgments[$i]);
                 $i++;
             }
             return $return;

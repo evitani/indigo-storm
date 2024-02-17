@@ -5,6 +5,4 @@ use Core\Models\BaseModel;
 
 class CronTask extends BaseModel {
 
-
-
 }

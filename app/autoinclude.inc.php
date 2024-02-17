@@ -11,6 +11,9 @@ $globalRequires = array(
     'vendor/autoload.php',
     'app/autoload.inc.php',
 
+    // Target override handler
+    'app/overrides.inc.php',
+
     // Custom logging interface
     'app/islog.inc.php',
 );

@@ -2,6 +2,7 @@
 
 namespace Core\Models;
 
+use AllowDynamicProperties;
 use Core\Db2\Models\DataTable;
 use Core\Db2\Models\SearchQuery;
 
@@ -9,6 +10,7 @@ use Core\Db2\Models\SearchQuery;
  * Basic class used as the template for other classes.
  * @package Core\Models
  */
+#[AllowDynamicProperties]
 class BaseModel{
 
     /**
@@ -493,6 +495,9 @@ class BaseModel{
             $foundId = $id;
         }
 
+        if (!$foundId) {
+            return false;
+        }
         $details = $indigoStorm->getDb2()->getObject($this->typeof(true), $foundId);
         if (is_null($details)) {
             return false;

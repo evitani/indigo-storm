@@ -2,25 +2,20 @@
 
 namespace Core\Tasks\Models;
 
-use Google\ApiCore\ApiException;
-use Google\Cloud\Tasks\V2\CloudTasksClient;
-use Google\Cloud\Tasks\V2\HttpMethod;
-use Google\Cloud\Tasks\V2\HttpRequest;
-use Google\Protobuf\Timestamp;
 use Services\User\AsyncAuthInterface;
 
 class Task {
 
-    private $allowedOptions = array(
+    private array $allowedOptions = array(
         'method',
         'headers'
     );
 
-    private $defaultOptions = array(
+    private array $defaultOptions = array(
         'method' => HTTP_METHOD_GET,
     );
 
-    private $config = array(
+    private array $config = array(
         'url' => null,
         'payload' => null,
         'headers' => null,
@@ -34,25 +29,28 @@ class Task {
         $this->parseOptions($options);
     }
 
-    public function run($delay = 0) {
+    /**
+     * Add the task to the queue to run as soon as resource allows. This may be instant, or there may be a delay,
+     * depending on both the environment and the number of other tasks enqueued ahead of it.
+     * @param int $delay Minimum number of seconds to delay prior to task running (not always observed)
+     * @return bool Whether the task was enqueued successfully (does not equate to the task having run)
+     */
+    public function run(int $delay = 0): bool {
 
         $this->setAuth('task');
 
-        $isGAE = getenv('GAE_APPLICATION') !== false;
+        $queueItem = $this->_getQueueItem();
+        return $queueItem->queue($delay);
 
-        if ($isGAE) {
-            // Inside App Engine, send the task to a queue
-            if (!$this->_runGAE($delay)) {
-                // Cloud Task couldn't be created, store it instead and warn
-                islog(LOG_WARNING, "Task set failed, adding to internal queue instead");
-                return $this->_runQueue();
-            } else {
-                return true;
-            }
+    }
+
+    private function _getQueueItem() {
+        if (
+            targetOverrides('Tasks\Models\QueueItem')
+        ) {
+            return new \Target\Tasks\Models\QueueItem($this->config);
         } else {
-            // Not in App Engine, queue the task internally for a cron to run
-            islog(LOG_INFO, "Tasks won't run in this environment without a cron, queued instead");
-            return $this->_runQueue();
+            return new \Core\Tasks\Models\QueueItem($this->config);
         }
     }
 
@@ -82,75 +80,25 @@ class Task {
 
     }
 
-    public function schedule($cronExpression) {
+    /**
+     * Schedule the task to run repeatedly based on a cron expression. Depending on the environment, tasks may be queued
+     * at run-time, so their exact start should not be presumed to match the schedule exactly.
+     * @param string $cronExpression The regularity of the task
+     * @return bool Whether the task was scheduled successfully
+     */
+    public function schedule(string $cronExpression): bool {
         $this->setAuth('cron');
-
-        $task = new CronTask();
-        $task->setName(sha1(uniqid('', true)));
-        $task->setMetadata($this->config);
-        $task->setMetadata('runRule', $cronExpression);
-
-        try{
-            $task->persist();
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
+        $cronItem = $this->_getCronItem();
+        return $cronItem->schedule($cronExpression);
     }
 
-    private function _runGAE($delay = 0) {
-        global $indigoStorm;
-
-        try{
-            $gae = $indigoStorm->getConfig('gae');
-        } catch (\Exception $e) {
-            islog(LOG_WARNING, "Tasks cannot be enqueued without App Engine environment details");
-            return false;
-        }
-
-        $client = new CloudTasksClient();
-
-        $queueName = $client->queueName($gae->getProject(), $gae->getLocation(), $gae->getQueue());
-
-        $request = new HttpRequest();
-        $request->setUrl($this->config['url']);
-        $request->setHttpMethod($this->getGaeMethod());
-        $request->setHeaders($this->config['headers']);
-
-        if (is_array($this->config['payload']) && count($this->config['payload']) > 0 && $this->supportsBody()) {
-            $request->setBody(json_encode($this->config['payload']));
-        }
-
-        if ($delay > 0) {
-            $runTime = time() + $delay;
-            $task = new \Google\Cloud\Tasks\V2\Task(['schedule_time' => new Timestamp(['seconds' => $runTime])]);
+    private function _getCronItem() {
+        if (
+            targetOverrides('Task\Models\CronItem')
+        ) {
+            return new \Target\Tasks\Models\CronItem($this->config);
         } else {
-            $task = new \Google\Cloud\Tasks\V2\Task();
-        }
-
-        $task->setHttpRequest($request);
-
-        try {
-            $client->createTask($queueName, $task);
-            return true;
-        } catch (ApiException $e) {
-            islog(LOG_WARNING, $e->getMessage());
-            return false;
-        }
-
-    }
-
-    private function _runQueue() {
-        $task = new QueuedTask();
-        $task->setName(sha1(uniqid('', true)));
-        $task->setMetadata($this->config);
-        $task->setMetadata('state', 'WAITING');
-        $task->setMetadata('queued', time());
-        try{
-            $task->persist();
-            return true;
-        } catch (\Exception $e) {
-            return false;
+            return new \Core\Tasks\Models\CronItem($this->config);
         }
     }
 
@@ -188,7 +136,7 @@ class Task {
         $this->config['headers']['Content-Type'] = "application/json";
     }
 
-    private function buildUrl($service, $url){
+    private function buildUrl($service, $url): string {
         global $indigoStorm;
 
         $service = preg_replace('/([A-Z])/', ' ${1}', $service);
@@ -207,7 +155,7 @@ class Task {
 
     }
 
-    private function specialRecursiveMerge($array1, $array2){
+    private function specialRecursiveMerge($array1, $array2): array {
 
         foreach($array1 as $arrKey => $arrVal) {
 
@@ -223,34 +171,13 @@ class Task {
 
         }
 
+        return [];
+
     }
 
-    private function isAssocArray(array $arr) {
+    private function isAssocArray(array $arr): bool {
         if (array() === $arr) return false;
         return array_keys($arr) !== range(0, count($arr) - 1);
-    }
-
-    private function supportsBody() {
-        $supportsBody = array(HTTP_METHOD_POST, HTTP_METHOD_PUT);
-        return in_array(strtolower($this->config['method']), $supportsBody);
-    }
-
-    private function getGaeMethod() {
-        switch (strtolower($this->config['method'])) {
-            case HTTP_METHOD_POST :
-                return HttpMethod::POST;
-                break;
-            case HTTP_METHOD_PUT :
-                return HttpMethod::PUT;
-                break;
-            case HTTP_METHOD_DELETE :
-                return HttpMethod::DELETE;
-                break;
-            case HTTP_METHOD_GET :
-            default:
-                return HttpMethod::GET;
-                break;
-        }
     }
 
 }
