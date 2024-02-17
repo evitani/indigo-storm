@@ -80,10 +80,10 @@ class DataTable{
     }
 
     private function lazyLoad(){
-        global $Application;
+        global $indigoStorm;
 
         if(!$this->loaded){
-            $fromSource = $Application->db2->getDataTable($this->dataSourceObject, $this->dataSourceId, $this);
+            $fromSource = $indigoStorm->getDb2()->getDataTable($this->dataSourceObject, $this->dataSourceId, $this);
             if(is_array($fromSource)){
                 $formattedData = array();
                 $this->existingKeys = array();

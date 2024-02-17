@@ -1,5 +1,8 @@
 <?php
 
+// Running Directory
+define('_RUNNINGDIR_', getcwd());
+
 //App details
 define("IS_VERSION", "20.15");
 $part1 = date("y");
@@ -41,6 +44,22 @@ define('DELETE_BACKUP_NEVER', 'softDelete');
 define('DELETE_BACKUP_7D', 'retainBackup7d');
 define('DELETE_BACKUP_30D', 'retainBackup30d');
 define('DELETE_NOBACKUP', 'noBackup');
+
+// HTTP Methods
+define('HTTP_METHOD_GET', 'get');
+define('HTTP_METHOD_POST', 'post');
+define('HTTP_METHOD_PUT', 'put');
+define('HTTP_METHOD_DELETE', 'delete');
+define('HTTP_METHOD_OPTIONS', 'options');
+
+// Return types
+define('RETURN_JSON', 'json');
+define('RETURN_FILE', 'file');
+
+// Tiers
+define('TIER_RELEASE', 'release');
+define('TIER_PRERELEASE', 'prerelease');
+define('TIER_LOCAL', 'local');
 
 //Message types
 define('MAILMAN_EMAIL', 'email');

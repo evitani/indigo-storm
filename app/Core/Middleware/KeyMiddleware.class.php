@@ -3,23 +3,24 @@
 namespace Core\Middleware;
 
 use Core\Models\ApiKey;
+use Core\Routing\Request;
+use Core\Routing\Response;
 
 class KeyMiddleware extends BaseMiddleware{
 
-    public function __invoke($request, $response, $next){
-        global $Application;
+    public function handleMiddleware(Request $request, Response $response){
 
         if($request->isOptions()){
 
-            $response = $next($request, $response);
+            $response = $this->next($request, $response);
 
             return $response;
 
         }else{
 
-            $requiresAuthentication = $Application->isEndpointSecure($request->getAttribute('route')->getName(), $_SERVER['REQUEST_METHOD']);
+            $requiresAuthentication = $request->requiresAuthentication();
 
-            if($requiresAuthentication && count($Application->tree->getInteraction()) === 1){
+            if($requiresAuthentication && count($request->getTree()->getInteraction()) === 1){
                 //First item in tree on an authenticated call, so check for an API key
 
                 $headerKey = $request->getHeader('is-api-key');
@@ -52,33 +53,34 @@ class KeyMiddleware extends BaseMiddleware{
 
                 }else{
 
-                    $directLicense = $key->getLicense($request->getAttribute('route')->getName());
+                    $directLicense = $key->getLicense($request->getRouteName());
 
                     $authenticated = false;
 
                     if(is_array($directLicense)){
                         $directLicense = array_flip($directLicense);
-                        if(array_key_exists(strtolower($_SERVER['REQUEST_METHOD']), $directLicense)){
+                        if(array_key_exists($request->getMethod(), $directLicense)){
                             $authenticated = true;
                         }
                     }
 
                     if($authenticated === false){
-                        $indirectArray = explode('/', $request->getAttribute('route')->getName());
+                        $indirectArray = explode('/', $request->getRouteName());
                         $indirectName = $indirectArray[0];
                         $indirectLicense = $key->getLicense($indirectName . '/*');
 
                         if(is_array($indirectLicense)){
                             $indirectLicense = array_flip($indirectLicense);
-                            if(array_key_exists(strtolower($_SERVER['REQUEST_METHOD']), $indirectLicense)){
+                            if(array_key_exists($request->getMethod(), $indirectLicense)){
                                 $authenticated = true;
                             }
                         }
                     }
 
                     if($authenticated){
-                        $Application->setKey($key);
-                        $response = $next($request, $response);
+                        $request->setKey($key);
+                        $request->getTree()->setMetadata('apiKey', $key->getId());
+                        $response = $this->next($request, $response);
 
                         return $response;
                     }else{
@@ -88,7 +90,7 @@ class KeyMiddleware extends BaseMiddleware{
                 }
 
             }else{
-                $response = $next($request, $response);
+                $response = $this->next($request, $response);
 
                 return $response;
             }
@@ -96,4 +98,5 @@ class KeyMiddleware extends BaseMiddleware{
         }
 
     }
+
 }

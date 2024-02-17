@@ -2,41 +2,64 @@
 
 namespace Core\Middleware;
 
+use Core\Routing\Request;
+use Core\Routing\Response;
+
 class CorsMiddleware extends BaseMiddleware{
-    public function __invoke($request, $response, $next){
-        global $Application;
 
-        $response = $response->withHeader('Access-Control-Allow-Headers', 'Access-Control-Allow-Origin,Pragma,Cache-Control,If-Modified-Since,Content-Type,is-api-key,is-session,enctype');
+    public function handleMiddleware(Request $request, Response $response){
 
-        if($request->getServerParam('HTTP_ORIGIN')){
-            $incomingUrl = $request->getServerParam('HTTP_ORIGIN');
-        }elseif($request->getServerParam('HTTP_REFERER')){
-            $incomingUrl = $request->getServerParam('HTTP_REFERER');
-        }else{
-            $incomingUrl = $request->getUri()->getHost();
+        global $indigoStorm;
+
+        $allowedHeaders = array(
+            'Access-Control-Allow-Origin',
+            'Pragma',
+            'Cache-Control',
+            'If-Modified-Since',
+            'Content-Type',
+            'enctype',
+            'is-api-key',
+            'is-session',
+            'is-triggered-by',
+            'is-identity',
+        );
+
+        foreach ($allowedHeaders as $allowedHeader) {
+            $response = $response->withHeader('Access-Control-Allow-Headers', $allowedHeader);
         }
 
-        $incomingUsesSSL = strlen(str_replace('https', '', $incomingUrl)) < strlen($incomingUrl);
+        if(!is_null($request->getServerParam('HTTP_ORIGIN'))){
+            $incomingUrl = $request->getServerParam('HTTP_ORIGIN');
+        }else{
+            $incomingUrl = $request->getServerParam('HTTP_REFERER');
+        }
 
+        if ($indigoStorm->getConfig('security')->getForceSSL()) {
+            $useSSL = true;
+        } else {
+            $useSSL = strpos($incomingUrl, 'https') !== false;
+        }
         $incomingUrl = str_replace(array('http://', 'https://'), array('', ''), $incomingUrl);
         $incomingUrl = explode('/', $incomingUrl);
         $incomingUrl = $incomingUrl[0];
 
         $protectedIncomingUrl = $incomingUrl;
 
-        if($incomingUsesSSL){
+        if($useSSL){
             $protocol = 'https://';
         }else{
             $protocol = 'http://';
         }
 
-        if($Application->isEndpointSecure($request->getAttribute('route')->getName(), $_SERVER['REQUEST_METHOD']) && !is_null($Application->key)){
+        $host = $indigoStorm->getHost($request->getHandlingService());
 
-            $allowedDomains = $Application->key->getMetadata('domains');
+        if($request->requiresAuthentication() && !is_null($request->getKey())){
+
+            $allowedDomains = $request->getKey()->getMetadata('domains');
 
             if(!is_null($allowedDomains) && is_array($allowedDomains) && count($allowedDomains) > 0){
 
-                $singleDomainFallback = $Application->key->getMetadata('domain');
+                $singleDomainFallback = $request->getKey()->getMetadata('domain');
 
                 if(is_string($singleDomainFallback) && $singleDomainFallback !== ''){
                     array_push($allowedDomains, $singleDomainFallback);
@@ -52,29 +75,27 @@ class CorsMiddleware extends BaseMiddleware{
                 }
 
                 if(!$dealt){
-                    $limitedUrl = str_replace(array('http://', 'https://'), array('', '',
-                    ), $Application->getEnvironmentVariable('url'));
+                    $limitedUrl = $indigoStorm->getHost($request->getHandlingService());
                     $limitedUrl = explode('/', $limitedUrl);
                     $response = $response->withHeader('Access-Control-Allow-Origin', $protocol . $limitedUrl[0]);
                 }
 
             }else{
 
-                if($this->checkDomain($Application->key->getMetadata('domain'), $incomingUrl) !== false){
-                    $response = $response->withHeader('Access-Control-Allow-Origin', $protocol . $this->checkDomain($Application->key->getMetadata('domain'), $incomingUrl));
+                if($this->checkDomain($request->getKey()->getMetadata('domain'), $incomingUrl) !== false){
+                    $response = $response->withHeader('Access-Control-Allow-Origin', $protocol . $this->checkDomain($request->getKey()->getMetadata('domain'), $incomingUrl));
                 }else{
-                    $limitedUrl = str_replace(array('http://', 'https://'), array('', '',
-                    ), $Application->getEnvironmentVariable('url'));
+                    $limitedUrl = $indigoStorm->getHost($request->getHandlingService());
                     $limitedUrl = explode('/', $limitedUrl);
                     $response = $response->withHeader('Access-Control-Allow-Origin', $protocol . $limitedUrl[0]);
                 }
 
             }
-        }else{
+        } elseif ($protectedIncomingUrl !== '') {
             $response = $response->withHeader('Access-Control-Allow-Origin', $protocol . $protectedIncomingUrl);
         }
 
-        $response = $next($request, $response);
+        $response = $this->next($request, $response);
 
         return $response;
 

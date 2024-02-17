@@ -73,11 +73,12 @@ class SearchQuery{
     }
 
     private function constructCondition($field, $operator, $comparator){
-        global $Application;
+        global $indigoStorm;
+
         $fieldMap = explode(".", $field);
         $operator = strtolower($operator);
 
-        $comparator = $Application->db2->escape($comparator);
+        $comparator = $indigoStorm->getDb2()->escape($comparator);
         $comparator = $this->wrapTerms($comparator);
 
         if(array_key_exists($operator, $this->operatorMap)){
@@ -88,7 +89,7 @@ class SearchQuery{
             throw new \Exception('Invalid operator ' . $operator, 500);
         }
 
-        $fieldMap = $Application->db2->escape($fieldMap);
+        $fieldMap = $indigoStorm->getDb2()->escape($fieldMap);
 
         if(strtolower($fieldMap[0]) === 'name' || strtolower($fieldMap[0]) === 'id'){
             $field = 'name';
@@ -192,10 +193,10 @@ class SearchQuery{
     }
 
     public function order($field, $order){
-        global $Application;
+        global $indigoStorm;
 
         if(in_array($order, array(ORDER_ASC, ORDER_DESC))){
-            $field = $Application->db2->escape($field);
+            $field = $indigoStorm->getDb2()->escape($field);
             if($field == 'name' || $field == 'id'){
                 $partial = "`" . $field . "` " . $order;
             }else{
@@ -218,7 +219,7 @@ class SearchQuery{
     }
 
     public function run(){
-        global $Application;
+        global $indigoStorm;
 
         $query = str_replace(
             array('|TABLENAME|','|CONDITION|','|LIMIT|','|ORDER|'),
@@ -227,7 +228,7 @@ class SearchQuery{
 
         $this->finalQuery = $query;
 
-        return $Application->db2->fulfillSearchQuery($this);
+        return $indigoStorm->getDb2()->fulfillSearchQuery($this);
     }
 
 }

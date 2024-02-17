@@ -2,6 +2,8 @@
 
 namespace Core\Models;
 
+use Core\Db2\Models\SearchQuery;
+
 class ApiKey extends BaseModel{
     protected $db2 = true;
 
@@ -10,23 +12,29 @@ class ApiKey extends BaseModel{
     }
 
     public function getUsage($startTime = null, $endTime = null){
-        global $Application;
 
-        $searchArray = array('apiKey' => array('eq' => $this->getId()));
+        $search = new SearchQuery(new RequestTree());
+        $search->filter($search->_and(
+            ['Metadata.apiKey', '=', $this->getId()]
+        ));
+
+        $filters = array(
+            ['Metadata.apiKey', '=', $this->getId()]
+        );
 
         if(!is_null($startTime)){
-            $searchArray['startTime'] = array('gt' => strval($startTime - 0.01));
+            array_push($filters, ['Metadata.startTime', '>', strval($startTime - 0.01)]);
         }
 
         if(!is_null($endTime)){
-            if(!is_null($startTime)){
-                $searchArray['startTime']['lt'] = strval($endTime + 0.01);
-            }else{
-                $searchArray['startTime'] = array('lt' => strval($endTime + 0.01));
-            }
+            array_push($filters, ['Metadata.startTime', '<', strval($endTime + 0.01)]);
         }
 
-        $listOfInteractions = $Application->db2->searchForObjects('RequestTree', 'Metadata', $searchArray);
+        if (count($filters) > 1) {
+            $listOfInteractions = $search->filter($search->_and($filters));
+        } else {
+            $listOfInteractions = $search->filter($filters)->run();
+        }
 
         $processingTime = 0;
 

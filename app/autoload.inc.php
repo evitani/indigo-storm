@@ -71,6 +71,10 @@ spl_autoload_register(function($class_name){
 
 
 //Define a dynamic class loader for use during route definition.
-function dynamic_loader($class){
-    return new $class;
+function dynamic_loader($class, $construct = null){
+    if (is_null($construct)){
+        return new $class;
+    } else {
+        return new $class($construct);
+    }
 }

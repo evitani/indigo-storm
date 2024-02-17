@@ -43,6 +43,10 @@ class Database2{
 
     }
 
+    public function close() {
+        $this->dbcon->close();
+    }
+
     /**
      * Escapes the input ready for including in a query.
      * If the value is an array, this will be iterated

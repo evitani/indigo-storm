@@ -21,9 +21,10 @@ class BaseInterface{
     protected function getServiceUrl($endpoint = null){
 
         if(is_null($this->serviceUrl)){
-            global $Application;
+            global $indigoStorm;
+
             $serviceName = $this->getService();
-            $serviceUrl = $Application->getEnvironmentVariable('url');
+            $serviceUrl = $indigoStorm->getConfig('url');
             $serviceUrl = str_replace('_SERVICE_', $serviceName, $serviceUrl);
             $this->serviceUrl = $serviceUrl . '/';
         }
@@ -85,21 +86,25 @@ class BaseInterface{
     }
 
     protected function getTreeHeader(){
-        global $Application;
+        global $indigoStorm;
+        $tree = $indigoStorm->getRouter()->getRequest()->getTree();
 
-        return 'is-request-tree: ' . $Application->tree->getName();
+        return 'is-request-tree: ' . $tree->getName();
     }
 
     protected function getEnvironmentHeader(){
-        global $Application;
+        global $indigoStorm;
 
-        return 'is-identity: ' . implode('-', $Application->getEnvironmentDetails());
+        return 'is-identity: ' . implode('-', array(
+            $indigoStorm->getConfig('env'), $indigoStorm->getConfig('tier')
+            ));
     }
 
     protected function formatResponse($response){
         if(is_array(json_decode($response, true)) || is_object($response, true)){
 
             $heldResponse = json_decode($response, false);
+
 
             foreach($heldResponse as $itemName => $itemContent){
                 if(is_object($itemContent) && isset($itemContent->data)){

@@ -3,15 +3,16 @@
 namespace Core\Middleware;
 
 use Core\Models\ApiUser;
+use Core\Routing\Request;
+use Core\Routing\Response;
 
 class AccessMiddleware extends BaseMiddleware{
 
-    public function __invoke($request, $response, $next){
-        global $Application;
+    public function handleMiddleware(Request $request, Response $response){
 
-        if($request->isOptions() || $request->getAttribute('route')->getName() == 'user/api-user'){
+        if($request->isOptions() || $request->getRouteName() === 'user/api-user'){
 
-            $response = $next($request, $response);
+            $response = $this->next($request, $response);
             return $response;
 
         }
@@ -37,8 +38,8 @@ class AccessMiddleware extends BaseMiddleware{
         $sessionExists = $session !== false && !is_null($session);
 
         // Run this only if the endpoint has access control AND this is the first in a tree
-        $firstInTree = is_null($Application->tree) || count($Application->tree->getInteraction()) === 1;
-        $accessType = $Application->isEndpointAccessControlled($request->getAttribute('route')->getName(), $_SERVER['REQUEST_METHOD']);
+        $firstInTree = is_null($request->getTree()) || count($request->getTree()->getInteraction()) === 1;
+        $accessType = $request->accessControlType();
 
         if($firstInTree && $accessType !== false){
 
@@ -46,8 +47,8 @@ class AccessMiddleware extends BaseMiddleware{
             if(!$sessionExists){
                 throw new \Exception("Unauthorised", 401);
             }else{
-                $Application->tree->setMetadata('user', $session->getUser());
-                $Application->setUser($session->getUser());
+                $request->getTree()->setMetadata('user', $session->getUser());
+                $request->setUser($session->getUser());
             }
 
             if(is_string($accessType)){
@@ -59,7 +60,7 @@ class AccessMiddleware extends BaseMiddleware{
 
                 foreach($accessType as $group){
                     if($session->checkAccess($group)){
-                        $response = $next($request, $response);
+                        $response = $this->next($request, $response);
                         return $response;
                         break;
                     }
@@ -69,7 +70,7 @@ class AccessMiddleware extends BaseMiddleware{
 
             }elseif($accessType === true){
 
-                $response = $next($request, $response);
+                $response = $this->next($request, $response);
                 return $response;
 
             }else{
@@ -77,10 +78,11 @@ class AccessMiddleware extends BaseMiddleware{
             }
 
         }else{
-            $response = $next($request, $response);
+            $response = $this->next($request, $response);
             return $response;
         }
 
     }
+
 }
 

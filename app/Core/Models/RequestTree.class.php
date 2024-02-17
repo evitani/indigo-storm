@@ -67,18 +67,21 @@ class RequestTree extends BaseModel{
     }
 
     public function logException($errno, $errMessage){
+        $errRef = sha1(uniqid($errno . $errMessage . $this->currentInteraction, true));
         $this->getAll();
         $this->setException(strval(microtime(true)),
                             array(
                                 'errorCode'    => $errno,
                                 'errorMessage' => $errMessage,
                                 'interaction'  => $this->currentInteraction,
+                                'errorRef'     => $errRef
                             ));
         if(count($this->getInteraction()) == 1){
             $this->endTree($errno);
         }else{
             $this->persist();
         }
+        return $errRef;
     }
 
     public function setCurrentInteraction($currentInteraction){

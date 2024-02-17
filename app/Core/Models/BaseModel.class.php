@@ -41,7 +41,7 @@ class BaseModel{
 
     /**
      * @var string How backups should be handled after deletion.
-     */
+         */
     protected $defaultBackupActivity = DELETE_BACKUP_NEVER;
 
     protected function addDataTable($tableName, $keyDetails, $valueDetails){
@@ -59,7 +59,7 @@ class BaseModel{
      * @throws \Exception
      */
     public function persist($revisionType = null){
-        global $Application;
+        global $indigoStorm;
 
         if(is_null($revisionType)){
             $revisionType = $this->revisionHandling;
@@ -67,18 +67,18 @@ class BaseModel{
 
         if($this->getId() === 0 || is_null($this->getId())){
             //New object to save
-            $this->id = $Application->db2->generateObject($this);
+            $this->id = $indigoStorm->getDb2()->generateObject($this);
         }else{
             //Existing object to update
             $this->handleRevision($revisionType);
-            $Application->db2->updateObject($this);
+            $indigoStorm->getDb2()->updateObject($this);
         }
 
         $this->connectDataTableSources();
 
         foreach($this as $propName => $property){
             if(gettype($property) === 'object' && get_class($property) === DATATABLE_CLASS){
-                $Application->db2->saveDataTable($this, $property);
+                $indigoStorm->getDb2()->saveDataTable($this, $property);
             }
         }
     }
@@ -134,16 +134,11 @@ class BaseModel{
      * If $id is defined and cannot be matched to an existing resource, 404 is thrown.
      */
     function __construct($id = false, $forceIdLookup = false){
-        global $Application;
-
-        //Activate Db2 in the event this is the first time it's been used in this call
-        if(is_null($Application->db2)){
-            $Application->initDb2();
-        }
+        global $indigoStorm;
 
         $this->addDataTable('Metadata', DB2_VARCHAR, DB2_BLOB);
         $this->configure();
-        $Application->db2->registerObject($this->typeof(true), $this);
+        $indigoStorm->getDb2()->registerObject($this->typeof(true), $this);
 
         if($id !== false && !is_null($id) && $id !== ''){
 
@@ -155,14 +150,14 @@ class BaseModel{
             if($forceIdLookup === SEARCH_BY_NAME || $forceIdLookup === SEARCH_BY_ID){
 
                 if($forceIdLookup === SEARCH_BY_NAME){
-                    $foundId = $Application->db2->findObject($this->typeOf(true), $id, $forceIdLookup);
+                    $foundId = $indigoStorm->getDb2()->findObject($this->typeOf(true), $id, $forceIdLookup);
                 }else{
                     $foundId = $id;
                 }
                 if($foundId !== false){
                     //Found the object, populate.
 
-                    $details = $Application->db2->getObject($this->typeof(true), $foundId);
+                    $details = $indigoStorm->getDb2()->getObject($this->typeof(true), $foundId);
 
                     if($details !== false){
                         $this->populateObject($details['id'], $details['name']);
@@ -322,9 +317,9 @@ class BaseModel{
      * recoverable content sorted by the time the content was overwritten.
      */
     public function listRevisions(){
-        global $Application;
+        global $indigoStorm;
 
-        $listOfRevisions = $Application->db2->searchForObjects('ObjectRevision', 'Metadata',
+        $listOfRevisions = $indigoStorm->getDb2()->searchForObjects('ObjectRevision', 'Metadata',
             array(
                 'objectClass' => array('eq' => get_class($this)),
                 'objectId' => array('eq' => $this->getId()),
@@ -383,7 +378,7 @@ class BaseModel{
      * @param mixed $backupType Whether to keep or delete the backup. Defaults to the object type's preset behaviour.
      */
     public function delete($backupType = null){
-        global $Application;
+        global $indigoStorm;
 
         if(is_null($backupType)){
             $backupType = $this->defaultBackupActivity;
@@ -393,7 +388,7 @@ class BaseModel{
             $backupType = DELETE_BACKUP_NEVER;
         }
 
-        $Application->db2->deleteObject($this, $backupType);
+        $indigoStorm->getDb2()->deleteObject($this, $backupType);
 
     }
 
