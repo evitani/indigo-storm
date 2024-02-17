@@ -60,6 +60,8 @@ interface classes in their original folder rather than expecting them to be abst
 New versions of Indigo Storm are released every 14 days. Releases are identified by [year number].[release in year]. A 
 pre-release of the next version is maintained on a separate branch which is merged with the release branch at launch.
 
+*NOTE: Releases are currently sporadic, but naming will continue to follow the pattern expected.*
+
 For information on changes, see the [WHATSNEW.md](WHATSNEW.md) file, and check the same file in the pre-release branch 
 for breaking changes before updating.
 

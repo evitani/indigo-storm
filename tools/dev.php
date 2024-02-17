@@ -8,9 +8,10 @@ function dynamic_loader($class){
     return new $class;
 }
 
-if(floatval(IS_VERSION) < floatval(IS_MOSTRECENT)){
-    echo "WARN: Your version of Indigo Storm (" . IS_VERSION . ") is out of date, update to " . IS_MOSTRECENT . PHP_EOL;
-}
+// Temporarily disabled while releases are sporadic
+//if(floatval(IS_VERSION) < floatval(IS_MOSTRECENT)){
+//    echo "WARN: Your version of Indigo Storm (" . IS_VERSION . ") is out of date, update to " . IS_MOSTRECENT . PHP_EOL;
+//}
 
 if(isset($argv[1])){
 

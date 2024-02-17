@@ -83,12 +83,13 @@ foreach($Application->getMiddleware() as $mw){
 require_once 'app/routing.inc.php';
 
 //Before we run the app, check to see if it is the latest version, and warn if it isn't
-if(floatval(IS_VERSION) < floatval(IS_MOSTRECENT)){
-    islog(
-        LOG_WARNING,
-        "Version " . IS_VERSION . " of Indigo Storm is out of date, update to " . IS_MOSTRECENT
-    );
-}
+// This part is disabled temporarily while the release schedule is non-standard
+//if(floatval(IS_VERSION) < floatval(IS_MOSTRECENT)){
+//    islog(
+//        LOG_WARNING,
+//        "Version " . IS_VERSION . " of Indigo Storm is out of date, update to " . IS_MOSTRECENT
+//    );
+//}
 
 //Run the combined application.
 $indigoStorm->run();
