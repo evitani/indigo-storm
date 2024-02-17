@@ -108,6 +108,8 @@ foreach($runningServices as $runningService){
 
                             $controller = dynamic_loader($handlingController);
 
+                            $response = $response->withHeader('Access-Control-Allow-Headers', '*');
+
                             switch ($returnType){
                                 case 'file':
                                     $file = $controller->$handlingMethod($request, $response, $args);

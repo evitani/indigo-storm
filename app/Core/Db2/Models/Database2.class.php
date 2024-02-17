@@ -2,25 +2,37 @@
 
 namespace Core\Db2\Models;
 
+use mysqli;
+
+/**
+ * Class Database2
+ * @package Core\Db2\Models
+ */
 class Database2{
 
-    protected $dbCon;
+    /**
+     * @var mysqli The mysqli database connection.
+     */
+    protected $dbcon;
 
+    /**
+     * @var array A register of all object types currently set up in the database
+     */
     protected $registry = array();
 
     /**
      * Db constructor.
      * @param array $config
      * An array of the config information to generate the Db connection. Requires "server", "user", "password", and "db" as keys.
-     * @throws \Exception
+     * @throws \Exception Excepts should the database connection fail
      */
     function __construct($config){
         if(is_array($config) && isset($config['server']) && isset($config['user']) && isset($config['password']) && isset($config['db'])){
 
             if(isset($config['socket'])){
-                $this->dbcon = new \mysqli($config['server'], $config['user'], $config['password'], $config['db'], null, $config['socket']);
+                $this->dbcon = new mysqli($config['server'], $config['user'], $config['password'], $config['db'], null, $config['socket']);
             }else{
-                $this->dbcon = new \mysqli($config['server'], $config['user'], $config['password'], $config['db']);
+                $this->dbcon = new mysqli($config['server'], $config['user'], $config['password'], $config['db']);
             }
 
             $this->populateRegistry();
@@ -35,8 +47,9 @@ class Database2{
      * Escapes the input ready for including in a query.
      * If the value is an array, this will be iterated
      * and the components escaped (recursively if needed).
-     * @param $str
+     * @param mixed $str
      * Item to escape
+     * @param bool $mustBeSingle Enforce the fact that the output must be a single string, not an array of objects
      * @return array|string
      * The input, but escaped for SQL statements
      */
@@ -62,7 +75,7 @@ class Database2{
     /**
      * Runs an SQL query against the database object and
      * returns a relevant result.
-     * @param $query
+     * @param string $query
      * Valid, escaped SQL query
      * @return array|mixed
      * INSERT & UPDATE statements will return true/false,
@@ -77,7 +90,7 @@ class Database2{
         $newError = $this->dbcon->error;
 
         if($errorCheck !== $newError && !is_null($newError) && $newError !== ''){
-            syslog(LOG_WARNING, $newError);
+            islog(LOG_WARNING, $newError);
 
             return false;
         }
@@ -103,6 +116,12 @@ class Database2{
         }
     }
 
+    /**
+     * Create a new base object in the database
+     * @param object $object An object to generate in the database
+     * @return int The ID of the saved object
+     * @throws \Exception Exeption will be thrown if the new object's name is non-unique
+     */
     public function generateObject($object){
         if($object->getId() === 0 || is_null($object->getId())){
             $objectName = $this->escape($object->getName());
@@ -119,6 +138,11 @@ class Database2{
         }
     }
 
+    /**
+     * Update the name of an object if changed.
+     * @param object $object An object that requires an update
+     * @return bool Whether the object has been saved successfully
+     */
     public function updateObject($object){
         if($object->getId() !== 0){
             $objectId = $this->escape($object->getId());
@@ -130,13 +154,35 @@ class Database2{
         }
     }
 
-    public function saveDataTable($object, $table){
+    /**
+     * Save a DataTable's content for a specific object
+     * @param object $object The object the DataTable relates to
+     * @param DataTable $table The DataTable to save
+     * @return bool Whether the save was successful
+     */
+    public function saveDataTable($object, DataTable $table){
 
         if(is_numeric($object->getId()) && $object->getId() > 0 && count($table->fetchDataTable()) > 0){
             $objectId = $this->escape($object->getId());
             $objectName = $this->escape($object->typeOf(true));
             $keyName = $objectName . "Id";
             $tableName = $objectName . "s__" . $this->escape($table->getName());
+
+            $existingKeys = $table->getExistingKeys();
+            $newKeys = $table->fetchDataTable();
+            $deleteList = array();
+
+            foreach($existingKeys as $existingKey){
+                if(!array_key_exists($existingKey, $newKeys)){
+                    array_push($deleteList, $existingKey);
+                }
+            }
+
+            if(count($deleteList) > 0){
+                $deleteQuery = "DELETE FROM $tableName WHERE $keyName = $objectId AND dataKey IN ";
+                $deleteQuery .= "(\"" . implode("\",\"", $this->escape($deleteList)) . "\")";
+                $this->run($deleteQuery);
+            }
 
             $query = "REPLACE INTO $tableName ($keyName, dataKey, dataValue) VALUES ";
             $queryLines = array();
@@ -155,6 +201,12 @@ class Database2{
         }
     }
 
+    /**
+     * Check if an object type exists in the registry, and create it if it does not
+     * @param string $objectName The object type name
+     * @param array $schema The schema for the object type
+     * @return bool Whether the save was successful
+     */
     public function registerObject($objectName, $schema){
 
         if(!$this->checkRegistry($objectName)){
@@ -165,6 +217,8 @@ class Database2{
             $queries[] = "CREATE TABLE `{$objectName}s` (
                           `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
                           `name` varchar(128) DEFAULT NULL,
+                          `status` varchar(32) DEFAULT 'ACTIVE',
+                          `version` varchar(40) DEFAULT NULL,
                           PRIMARY KEY (`id`),
                           UNIQUE KEY `name` (`name`)
                         ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;";
@@ -193,7 +247,7 @@ class Database2{
             }
 
             if($success){
-                $query = "INSERT INTO _Config (objectName, objectVersion) VALUES ('{$objectName}', '1')";
+                $query = "INSERT INTO _Config (objectName, objectVersion) VALUES ('{$objectName}', '2')";
                 if($this->run($query) !== false){
                     $this->populateRegistry();
 
@@ -201,6 +255,22 @@ class Database2{
                 }else{
                     return false;
                 }
+            }else{
+                return false;
+            }
+
+        }else if($this->registry[$objectName] == '1'){
+
+            //Object does exist in registry, but needs updating to db2.2 to support object deletion (and versioning)
+            $query = "ALTER TABLE `{$objectName}s`
+                        ADD `status` varchar(32) DEFAULT 'ACTIVE',
+                        ADD `version` varchar(40) DEFAULT NULL;";
+            $this->run($query);
+            $query = "REPLACE INTO _Config (objectName, objectVersion) VALUES ('{$objectName}', '2')";
+            if($this->run($query) !== false){
+                $this->populateRegistry();
+
+                return true;
             }else{
                 return false;
             }
@@ -220,10 +290,23 @@ class Database2{
 
     }
 
+    /**
+     * Check if an object type exists in the registry
+     * @param string $objectName The object type name
+     * @return bool Whether the object exists in the registry
+     */
     public function checkRegistry($objectName){
         return array_key_exists($objectName, $this->registry);
     }
 
+    /**
+     * Find an object by name or ID
+     * @param string $objectType the name of the object type
+     * @param string|int $term The name or ID of the object
+     * @param string $field whether to search by name or ID
+     * @return bool|mixed Either return the resulting ID or false if not found
+     * @throws \Exception Returns an exception if the search term is not 'name' or 'id'
+     */
     public function findObject($objectType, $term, $field){
         if($field === 'id' || $field === 'name'){
             $tableName = $this->escape($objectType) . 's';
@@ -231,7 +314,7 @@ class Database2{
             if($field === 'name'){
                 $searchTerm = "'$searchTerm'";
             }
-            $query = "SELECT id FROM $tableName WHERE $field = $searchTerm";
+            $query = "SELECT id FROM $tableName WHERE $field = $searchTerm AND `status` = 'ACTIVE'";
             $result = $this->run($query);
             if(is_array($result) && count($result) == 1){
                 return $result[0];
@@ -243,10 +326,16 @@ class Database2{
         }
     }
 
+    /**
+     * Gets an single object based on ID
+     * @param string $objectType The object type
+     * @param int $id the object ID
+     * @return bool|mixed Returns either the ID and name of the object or false if not found
+     */
     public function getObject($objectType, $id){
         $tableName = $this->escape($objectType) . 's';
         $objectId = $this->escape($id);
-        $query = "SELECT id, name FROM $tableName WHERE id = $id LIMIT 1";
+        $query = "SELECT id, name FROM $tableName WHERE id = $id AND `status` = 'ACTIVE' LIMIT 1";
         $response = $this->run($query);
         if(count($response) === 1){
             return $response[0];
@@ -255,7 +344,14 @@ class Database2{
         }
     }
 
-    public function getDataTable($objectName, $objectId, $table){
+    /**
+     * Gets the contents of a DataTable relating to an object instance
+     * @param string $objectName
+     * @param int $objectId
+     * @param DataTable $table
+     * @return array|mixed
+     */
+    public function getDataTable($objectName, $objectId, DataTable $table){
         if(is_numeric($objectId) && $objectId > 0){
             $objectId = $this->escape($objectId);
             $objectName = $this->escape($objectName);
@@ -335,11 +431,11 @@ class Database2{
 
             if($searchingName == 'name'){
                 $searchCriteria = implode("", $searchCriteria);
-                $query = "SELECT name FROM {$tbl} WHERE {$searchCriteria}$limitString";
+                $query = "SELECT name FROM {$tbl} WHERE `status` = 'ACTIVE' AND {$searchCriteria}$limitString";
             }else{
                 $subTbl = $tbl . "__" . ucwords($this->escape($dataset));
                 $searchCriteria = implode(") AND id IN (SELECT {$resource}Id FROM {$subTbl} WHERE ", $searchCriteria);
-                $query = "SELECT name FROM {$tbl} WHERE id IN (SELECT {$resource}Id FROM {$subTbl} WHERE $searchCriteria) ORDER BY id {$order}$limitString";
+                $query = "SELECT name FROM {$tbl} WHERE `status` = 'ACTIVE' AND id IN (SELECT {$resource}Id FROM {$subTbl} WHERE $searchCriteria) ORDER BY id {$order}$limitString";
             }
             $query = str_replace(' AND ()', '', $query);
             $query = str_replace(' OR ()', '', $query);
@@ -427,6 +523,49 @@ class Database2{
         }else{
             throw new \Exception('Cannot get list with statement', 500);
         }
+    }
+
+    public function deleteObject($object, $backupAction){
+        $tableName = $this->escape($object->typeof(true)) . "s";
+        $objectId = $this->escape($object->getId());
+
+        $object->getAll();
+        $object->setMetadata('_deletedName', $object->getName());
+        $object->persist(SAVE_REVISIONS_NO);
+        $queries = array();
+
+        $deletionEvent = $this->escape(uniqid());
+
+        switch($backupAction){
+            case DELETE_NOBACKUP:
+                $queries[] = "DELETE FROM $tableName WHERE id = $objectId";
+                $revisions = $this->searchForObjects('ObjectRevision', 'Metadata', array(
+                    'objectId' => array('eq' => $objectId),
+                    'objectClass' => array('eq' => get_class($object)),
+                ));
+                $queries[] = "DELETE FROM ObjectRevisions WHERE name IN (\"" .
+                    implode("\",\"", $this->escape($revisions)) . "\")";
+                break;
+            case DELETE_BACKUP_7D:
+                $delBackupAfter = time() + 604800;
+            case DELETE_BACKUP_30D:
+                if(!isset($delBackupAfter)){
+                    $delBackupAfter = time() + 2592000;
+                }
+                $queries[] = "UPDATE $tableName SET `status` = 'DELETED|{$delBackupAfter}', `name` = '$deletionEvent' WHERE id = $objectId";
+                break;
+            case DELETE_BACKUP_NEVER:
+            default:
+                $queries[] = "UPDATE $tableName SET `status` = 'DELETED', `name` = '$deletionEvent' WHERE id = $objectId";
+                break;
+        }
+
+        foreach($queries as $query){
+            $this->run($query);
+        }
+
+        return true;
+
     }
 
 }

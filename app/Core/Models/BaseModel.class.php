@@ -23,9 +23,26 @@ class BaseModel{
     public $name;
 
     /**
+     * @var string
+     * Whether to store old versions of the object, log they were changed, or not hold any history at all
+     */
+    protected $revisionHandling = SAVE_REVISIONS_OBJECT;
+
+    /**
+     * @var null|string
+     * The previous name for this object instance (if set)
+     */
+    protected $oldName = null;
+
+    /**
      * @var bool Whether ID lookup should be allowed by the object
      */
     protected $allowEnumeration = false;
+
+    /**
+     * @var string How backups should be handled after deletion.
+     */
+    protected $defaultBackupActivity = DELETE_BACKUP_NEVER;
 
     protected function addDataTable($tableName, $keyDetails, $valueDetails){
         if($this->getId() === 0 || is_null($this->getId())){
@@ -36,7 +53,12 @@ class BaseModel{
         $this->{$tableName} = new DataTable($tableName, $keyDetails, $valueDetails, $newObject);
     }
 
-    public function persist(){
+    /**
+     * Save the object to the database
+     * @param string $revisionType Whether to save the old copy of the object. Default to saving a full revision.
+     * @throws \Exception
+     */
+    public function persist($revisionType = SAVE_REVISIONS_OBJECT){
         global $Application;
 
         if($this->getId() === 0 || is_null($this->getId())){
@@ -44,6 +66,7 @@ class BaseModel{
             $this->id = $Application->db2->generateObject($this);
         }else{
             //Existing object to update
+            $this->handleRevision($revisionType);
             $Application->db2->updateObject($this);
         }
 
@@ -53,6 +76,28 @@ class BaseModel{
             if(gettype($property) === 'object' && get_class($property) === DATATABLE_CLASS){
                 $Application->db2->saveDataTable($this, $property);
             }
+        }
+    }
+
+    /**
+     * @param $revisionType
+     * @throws \Exception
+     */
+    protected function handleRevision($revisionType){
+        //If the revision action is set to overwrite or the object doesn't support it, don't save a revision
+        if($revisionType === SAVE_REVISIONS_NO || $this->revisionHandling === SAVE_REVISIONS_NO){
+            return;
+        }
+
+        $revision = new ObjectRevision();
+        switch($revisionType){
+            case SAVE_REVISIONS_LOG:
+                $revision->generateRevisionLog($this);
+                break;
+            case SAVE_REVISIONS_OBJECT:
+            default:
+                $revision->generateRevision($this);
+                break;
         }
     }
 
@@ -68,6 +113,7 @@ class BaseModel{
         if($this->getId() === 0 || $this->getId() === false || is_null($this->getId())){
             $this->id = intval($id);
             $this->setName($name);
+            $this->oldName = $name;
             $this->connectDataTableSources();
         }else{
             throw new \Exception("Cannot populate existing object.", 500);
@@ -171,6 +217,10 @@ class BaseModel{
 
     }
 
+    public function getOldName(){
+        return $this->oldName;
+    }
+
     /**
      * Magic method call to get values from the resource. If the value you want hasn't yet been loaded from the database
      * it will be lazy loaded and then returned.
@@ -260,6 +310,82 @@ class BaseModel{
         }else{
             return false;
         }
+
+    }
+
+    /**
+     * @return array A key/value array of revisions (revision name => overwrite time) for the object that contain
+     * recoverable content sorted by the time the content was overwritten.
+     */
+    public function listRevisions(){
+        global $Application;
+
+        $listOfRevisions = $Application->db2->searchForObjects('ObjectRevision', 'Metadata',
+            array(
+                'objectClass' => array('eq' => get_class($this)),
+                'objectId' => array('eq' => $this->getId()),
+                'canRecover' => array('eq' => true)
+            ));
+
+        $revisions = array();
+
+        foreach($listOfRevisions as $revisionId){
+            try{
+                $revision = new ObjectRevision($revisionId);
+                $revisions[$revisionId] = floatval($revision->getMetadata('overwriteTime'));
+                unset($revision);
+            }catch(\Exception $e){
+                continue;
+            }
+        }
+
+        asort($revisions);
+
+        return $revisions;
+    }
+
+    /**
+     * Immediately recover an old revision of the object. Use listRevisions() to get valid revisions.
+     *
+     * @param $revisionName string The name of the revision to recover from
+     * @throws \Exception If the revision is not found or not valid, an error will be thrown
+     */
+    public function recoverRevision($revisionName){
+        $revision = new ObjectRevision($revisionName);
+
+        if(
+            $revision->getMetadata('objectClass') !== get_class($this) ||
+            $revision->getMetadata('objectId') != $this->getId() ||
+            $revision->getMetadata('canRecover') != true
+        ){
+            throw new \Exception('Revision not valid for object or cannot recover', 500);
+        }
+
+        foreach($revision->getContent() as $key => $content){
+            if($key === 'name'){
+                $this->name = $content;
+            }else{
+                $this->{'set' . $key}($content);
+            }
+        }
+
+        $this->persist();
+        $this->getAll();
+
+    }
+
+    public function delete($backupType = null){
+        global $Application;
+
+        if(is_null($backupType)){
+            $backupType = $this->defaultBackupActivity;
+        }
+        $allowedDestructions = array(DELETE_BACKUP_NEVER, DELETE_BACKUP_7D, DELETE_BACKUP_30D, DELETE_NOBACKUP);
+        if(!in_array($backupType, $allowedDestructions)){
+            $backupType = DELETE_BACKUP_NEVER;
+        }
+
+        $Application->db2->deleteObject($this, $backupType);
 
     }
 }

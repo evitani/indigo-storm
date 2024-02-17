@@ -7,6 +7,9 @@ class RequestTree extends BaseModel{
 
     protected $currentInteraction = null;
 
+    protected $revisionHandling = SAVE_REVISIONS_NO;
+    protected $defaultBackupActivity = DELETE_NOBACKUP;
+
     public function configure(){
         $this->addDataTable('Interaction', DB2_VARCHAR, DB2_BLOB_LONG);
         $this->addDataTable('Exception', DB2_VARCHAR_SHORT, DB2_BLOB_LONG);
@@ -14,7 +17,7 @@ class RequestTree extends BaseModel{
 
     public function startTree($entryPoint){
         $this->setName(sha1(uniqid('IS', true)));
-        syslog(LOG_INFO, 'New Tree started with ID: ' . $this->getName());
+        islog(LOG_INFO, 'New Tree started with ID: ' . $this->getName());
 
         $trimmingEntryPoint = explode("?", $entryPoint);
         if(count($trimmingEntryPoint) > 1){

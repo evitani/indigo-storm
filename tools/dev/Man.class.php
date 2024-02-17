@@ -21,6 +21,13 @@ class Man extends Tool{
         $this->printLine('         --interface-only (this endpoint is for interfaces only)', 3);
         $this->printLine('• require-interface: add an interface to a service\'s required list', 1);
         $this->printLine('  options: [ServiceName] [InterfaceName]', 3);
+        $this->printLine('• release: creates a release-ready package of the specified service', 1);
+        $this->printLine('  options: [ServiceName]', 3);
+        $this->printLine('  flags: -env (apache, gae, gae55, or gae73)', 3);
+        $this->printLine('         -compress (zip or tar)', 3);
+        $this->printLine('         --php7 (removes php5.6 from composer.json)', 3);
+        $this->printLine('         --includecomposer (includes composer.json in release)', 3);
+        $this->printLine('         --nocomposer (stops composer install running pre-release)', 3);
         $this->printLine('');
         $this->printLine('Global flags:');
         $this->printLine('• -q: don\'t prompt for inputs (all options must be included)', 1);

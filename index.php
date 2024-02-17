@@ -18,6 +18,9 @@ require_once 'config/service.config.php';
 require 'vendor/autoload.php';
 require_once 'app/autoload.inc.php';
 
+//Include the custom logger
+require_once 'app/islog.inc.php';
+
 //Define the Application object.
 $Application = new Core\Models\Application;
 
@@ -31,6 +34,7 @@ $slimContainer = new \Slim\Container();
 
 //Build an error handler for Slim to use.
 $slimContainer['errorHandler'] = function($slimContainer){
+
     return function($request, $response, $exception) use ($slimContainer){
 
         if($exception->getCode() > 0){
@@ -53,11 +57,13 @@ $slimContainer['errorHandler'] = function($slimContainer){
         }catch (Exception $e){
             return $slimContainer['response']->withStatus($errno)
                                              ->withHeader('Content-Type', 'text/html')
+                                             ->withHeader('Access-Control-Allow-Origin', '*')
                                              ->write($exception->getMessage());
         }
 
         return $slimContainer['response']->withStatus($errno)
                                          ->withHeader('Content-Type', 'text/html')
+                                         ->withHeader('Access-Control-Allow-Origin', '*')
                                          ->write($exception->getMessage());
     };
 };
@@ -78,7 +84,7 @@ require_once 'app/routing.inc.php';
 
 //Before we run the app, check to see if it is the latest version, and warn if it isn't
 if(floatval(IS_VERSION) < floatval(IS_MOSTRECENT)){
-    syslog(
+    islog(
         LOG_WARNING,
         "Version " . IS_VERSION . " of Indigo Storm is out of date, update to " . IS_MOSTRECENT
     );

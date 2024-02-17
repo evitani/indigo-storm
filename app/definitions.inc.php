@@ -1,9 +1,12 @@
 <?php
 
 //App details
-define("IS_VERSION", "20.01");
+define("IS_VERSION", "20.05");
 $part1 = date("y");
 $part2 = intval(intval(date("W")) / 2);
+if($part2 < 10){
+    $part2 = "0" . $part2;
+}
 define('IS_MOSTRECENT', $part1 . "." . $part2);
 unset($part1);
 unset($part2);
@@ -25,10 +28,20 @@ define('SEARCH_BY_NAME', 'name');
 //Class information
 define('DATATABLE_CLASS', 'Core\Db2\Models\DataTable');
 
+//Object save types
+define('SAVE_REVISIONS_NO', 'norev');
+define('SAVE_REVISIONS_LOG', 'logrev');
+define('SAVE_REVISIONS_OBJECT', 'objectrev');
+
+//Object deletion types
+define('DELETE_BACKUP_NEVER', 'softDelete');
+define('DELETE_BACKUP_7D', 'retainBackup7d');
+define('DELETE_BACKUP_30D', 'retainBackup30d');
+define('DELETE_NOBACKUP', 'noBackup');
+
 //Message types
 define('MAILMAN_EMAIL', 'email');
 define('MAILMAN_SMS', 'sms');
-
 
 //Mailman
 define('MAILMAN_LOG_SEND_IMMEDIATE', 'IMMEDIATE_SEND');

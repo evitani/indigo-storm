@@ -11,6 +11,7 @@ class DataTable{
     public $dataSourceId;
     protected $loaded = false;
     private $dataSourceSet = false;
+    private $existingKeys = array();
 
     public function __construct($tableName, $keyDetails, $valueDetails, $newObject = false){
         $this->schema = array(
@@ -85,8 +86,10 @@ class DataTable{
             $fromSource = $Application->db2->getDataTable($this->dataSourceObject, $this->dataSourceId, $this);
             if(is_array($fromSource)){
                 $formattedData = array();
+                $this->existingKeys = array();
                 foreach($fromSource as $item){
                     $formattedData[$item['dataKey']] = $item['dataValue'];
+                    array_push($this->existingKeys, $item['dataKey']);
                 }
                 if(count($formattedData) > 0){
                     $this->data = $formattedData;
@@ -94,6 +97,10 @@ class DataTable{
             }
             $this->loaded = true;
         }
+    }
+
+    public function getExistingKeys(){
+        return $this->existingKeys;
     }
 
 }
